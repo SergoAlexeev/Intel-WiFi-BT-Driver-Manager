@@ -1,4 +1,4 @@
-# Intel Wi-Fi & Bluetooth Driver Manager (v1.9)
+# Intel Wi-Fi & Bluetooth Driver Manager (v2.0)
 
 `🌐 Open Source` · `📄 MIT License` · `💻 Windows 10/11` · `🛠 PowerShell 5.1+`
 
@@ -47,8 +47,10 @@
 
 Узнать подробный алгоритм работы и найти ответы на технические вопросы можно в наших сопроводительных материалах:
 
-👉 **[Полная техническая документация (DOCUMENTATION.md)](./DOCUMENTATION.md)**  
+👉 **[Полная техническая документация (DOCUMENTATION.md)](./DOCUMENTATION.md)**
+
 👉 **[Руководство по устранению неполадок и ошибок (TROUBLESHOOTING.md)](./TROUBLESHOOTING.md)**
+
 
 ---
 
