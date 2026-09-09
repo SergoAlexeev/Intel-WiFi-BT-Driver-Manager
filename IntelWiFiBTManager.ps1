@@ -1,9 +1,9 @@
-﻿<#
+<#
 .SYNOPSIS
     Менеджер Wi-Fi и Bluetooth Intel – автоматическая проверка и обновление драйверов.
 .DESCRIPTION
     Скрипт определяет адаптеры Intel Wi-Fi и Bluetooth, сравнивает текущие версии с актуальными
-    из официальных источников и устанавливает обновления.
+    из официаischen источников и устанавливает обновления.
 .PARAMETER Silent
     Запуск в тихом режиме (без запросов к пользователю). Все обновления устанавливаются автоматически.
 .EXAMPLE
@@ -17,14 +17,14 @@ param([switch]$Silent)
 
 # =============================================
 # МЕНЕДЖЕР WI-FI И BLUETOOTH INTEL
-# Версия: 1.9 (исправления для тихого режима)
+# Версия: 2.0 (SecOps Безопасность и Валидация)
 # =============================================
 
 # --- 1. ИНФОРМАЦИОННОЕ СООБЩЕНИЕ ---
 if (-not $Silent) {
     Write-Host "=========================================" -ForegroundColor Cyan
     Write-Host "   МЕНЕДЖЕР WI-FI И BLUETOOTH INTEL" -ForegroundColor Cyan
-    Write-Host "   Версия 1.9" -ForegroundColor Gray
+    Write-Host "   Версия 2.0 (SecOps Verified)" -ForegroundColor Gray
     Write-Host "=========================================" -ForegroundColor Cyan
     Write-Host ""
     Write-Host "Назначение: автоматическая проверка и установка"
@@ -35,8 +35,9 @@ if (-not $Silent) {
     Write-Host "  • Bluetooth адаптер (любая модель Intel)"
     Write-Host ""
     Write-Host "Для работы скрипта требуются права администратора."
-    Write-Host "Это необходимо для установки драйверов и создания"
-    Write-Host "точки восстановления системы."
+    Write-Host "Это необходимо для установки драйверов. Базовая утилита"
+    Write-Host "автоматически создаст точку восстановления системы"
+    Write-Host "перед непосредственным внесением изменений."
     Write-Host "=========================================" -ForegroundColor Cyan
     Write-Host ""
 }
@@ -44,7 +45,7 @@ if (-not $Silent) {
 # --- 2. ПРОВЕРКА ПРАВ АДМИНИСТРАТОРА ---
 if (-NOT ([Security.Principal.WindowsPrincipal] [Security.Principal.WindowsIdentity]::GetCurrent()).IsInRole([Security.Principal.WindowsBuiltInRole] "Administrator")) {
     if ($Silent) {
-        Write-Error "Критическая ошибка: Недостаточно прав для работы в тихом режиме."
+        Write-Error "Критическая ошибка безопасности: Недостаточно прав для работы в тихом режиме."
         exit 1
     } else {
         Write-Host "Для установки драйверов требуются права администратора." -ForegroundColor Yellow
@@ -52,7 +53,7 @@ if (-NOT ([Security.Principal.WindowsPrincipal] [Security.Principal.WindowsIdent
         if ($response -eq 'Y' -or $response -eq 'y') {
             Start-Process -FilePath "powershell.exe" -Verb RunAs -ArgumentList "-ExecutionPolicy Bypass -NoProfile -File `"$PSCommandPath`"" -Wait
         }
-        exit
+        exit 1
     }
 }
 
@@ -60,14 +61,14 @@ if (-NOT ([Security.Principal.WindowsPrincipal] [Security.Principal.WindowsIdent
 function Test-InternetConnection {
     Write-Host "Проверка подключения к интернету..." -ForegroundColor Gray
     if (-not (Test-Connection -ComputerName 8.8.8.8 -Count 1 -Quiet -ErrorAction SilentlyContinue)) {
-        Write-Host "Интернет-соединение отсутствует." -ForegroundColor Red
+        Write-Host "Internet-соединение отсутствует." -ForegroundColor Red
         Write-Host "Для работы скрипта требуется доступ к интернету." -ForegroundColor Yellow
         if ($Silent) {
-            Write-Error "Тихий режим: выход из-за отсутствия интернета."
+            Write-Error "Критическая ошибка: Тихий режим прерван из-за отсутствия интернета."
             exit 1
         } else {
             $continue = Read-Host "Продолжить без интернета? (Y/N)"
-            if ($continue -ne 'Y' -and $continue -ne 'y') { exit }
+            if ($continue -ne 'Y' -and $continue -ne 'y') { exit 1 }
         }
         return $false
     }
@@ -145,9 +146,7 @@ function Ensure-NuGetProvider {
             Install-PackageProvider -Name NuGet -Force -Scope CurrentUser -ErrorAction Stop
             Write-Host "NuGet успешно установлен." -ForegroundColor Green
         } catch {
-            Write-Host "ОШИБКА: Не удалось установить NuGet." -ForegroundColor Red
-            Write-Host "Попробуйте выполнить вручную от администратора:" -ForegroundColor Yellow
-            Write-Host "  Install-PackageProvider -Name NuGet -Force -Scope CurrentUser" -ForegroundColor Yellow
+            Write-Error "Критическая ошибка: Не удалось установить NuGet."
             if (-not $Silent) { Read-Host "Нажмите Enter для выхода" }
             exit 1
         }
@@ -170,8 +169,21 @@ function Ensure-UpdaterInstalled {
     
     if (-not $installed) {
         Write-Host "`nУтилита для обновления Wi-Fi и Bluetooth не найдена." -ForegroundColor Yellow
+        
+        # SecOps: Проверка издателя пакета перед фоновой/интерактивной установкой
+        try {
+            $scriptInfo = Find-Script -Name $updaterName -Repository PSGallery -ErrorAction Stop
+            if ($scriptInfo.Author -ne "FirstEverTech") {
+                Write-Error "КРИТИЧЕСКАЯ ОШИБКА БЕЗОПАСНОСТИ: Издатель пакета '$($scriptInfo.Author)' не совпадает с легитимным автором (FirstEverTech)!"
+                exit 1
+            }
+        } catch {
+            Write-Error "Ошибка безопасности: Не удалось верифицировать издателя в репозитории PSGallery."
+            exit 1
+        }
+
         if ($Silent) {
-            Write-Host "Тихий режим: устанавливаю утилиту автоматически..." -ForegroundColor Gray
+            Write-Host "Тихий режим: устанавливаю проверенную утилиту автоматически..." -ForegroundColor Gray
             try {
                 Install-Script -Name $updaterName -Force -Scope CurrentUser -ErrorAction Stop
                 Write-Host "Утилита успешно установлена." -ForegroundColor Green
@@ -181,7 +193,7 @@ function Ensure-UpdaterInstalled {
                 exit 1
             }
         } else {
-            $installResponse = Read-Host "Установить её сейчас? (Y/N)"
+            $installResponse = Read-Host "Установить проверенную утилиту сейчас? (Y/N)"
             if ($installResponse -eq 'Y' -or $installResponse -eq 'y') {
                 Write-Host "Устанавливаю $updaterName ..." -ForegroundColor Cyan
                 try {
@@ -189,15 +201,13 @@ function Ensure-UpdaterInstalled {
                     Write-Host "Утилита успешно установлена." -ForegroundColor Green
                     return $true
                 } catch {
-                    Write-Host "ОШИБКА: Не удалось установить утилиту." -ForegroundColor Red
-                    Write-Host "Попробуйте выполнить вручную от администратора:" -ForegroundColor Yellow
-                    Write-Host "  Install-Script -Name $updaterName -Force" -ForegroundColor Yellow
-                    Read-Host "Нажмите Enter для выхода"
+                    Write-Error "ОШИБКА: Не удалось установить утилиту."
+                    if (-not $Silent) { Read-Host "Нажмите Enter для выхода" }
                     exit 1
                 }
             } else {
-                Write-Host "Установка отменена. Работа скрипта невозможна без этой утилиты." -ForegroundColor Red
-                Read-Host "Нажмите Enter для выхода"
+                Write-Error "Установка отменена. Работа скрипта невозможна без этой утилиты."
+                if (-not $Silent) { Read-Host "Нажмите Enter для выхода" }
                 exit 1
             }
         }
@@ -207,7 +217,14 @@ function Ensure-UpdaterInstalled {
     try {
         $installedVersion = $installed.Version
         Write-Host "`nУстановленная версия утилиты: $installedVersion" -ForegroundColor Gray
-        $latestInfo = Find-Script -Name $updaterName -ErrorAction Stop
+        $latestInfo = Find-Script -Name $updaterName -Repository PSGallery -ErrorAction Stop
+        
+        # SecOps: Повторная проверка автора при обновлении сценария
+        if ($latestInfo.Author -ne "FirstEverTech") {
+            Write-Error "КРИТИЧЕСКАЯ ОШИБКА БЕЗОПАСНОСТИ: Попытка подмены издателя обновления! Ожидался: FirstEverTech."
+            exit 1
+        }
+
         $latestVersion = $latestInfo.Version
         Write-Host "Доступная версия утилиты: $latestVersion" -ForegroundColor Gray
         if ($installedVersion -lt $latestVersion) {
@@ -264,7 +281,6 @@ function Get-LatestInfoFromUpdater {
 
     $tempFile = [System.IO.Path]::GetTempFileName()
     try {
-        # Сначала пытаемся получить JSON-вывод
         Start-Process -FilePath "powershell.exe" -ArgumentList "-ExecutionPolicy Bypass -NoProfile -File `"$updaterFullPath`" -auto -json" -Wait -NoNewWindow -RedirectStandardOutput $tempFile
         $output = Get-Content -Path $tempFile -Raw
     } finally {
@@ -348,20 +364,27 @@ function Get-LatestInfoFromUpdater {
         }
     }
 
+    # SecOps Валидация: предотвращение "пустых" Regex-совпадений, ведущих к ложным срабатываниям
+    if ($result.ContainsKey("WiFi_Latest") -and [string]::IsNullOrWhiteSpace($result["WiFi_Latest"])) {
+        Write-Error "Ошибка валидации: Распарсенная версия Wi-Fi пуста."
+        return $null
+    }
+    if ($result.ContainsKey("BT_Latest") -and [string]::IsNullOrWhiteSpace($result["BT_Latest"])) {
+        Write-Error "Ошибка валидации: Распарсенная версия Bluetooth пуста."
+        return $null
+    }
+
     if ($result.ContainsKey("WiFi_Latest") -or $result.ContainsKey("BT_Latest")) {
         Write-Host "Версии и модели успешно получены." -ForegroundColor Green
         return $result
     } else {
-        Write-Host "Не удалось извлечь информацию из вывода утилиты." -ForegroundColor Red
+        Write-Error "Не удалось извлечь структурированную информацию из вывода утилиты."
         return $null
     }
 }
 
 # --- 9. ОСНОВНАЯ ЛОГИКА ---
-# Проверка интернета
 Test-InternetConnection | Out-Null
-
-# Вывод адаптеров и проверка Intel
 Show-WirelessAdaptersInfo | Out-Null
 
 Write-Host "`n--- Подготовка к проверке драйверов ---" -ForegroundColor Cyan
@@ -375,11 +398,11 @@ Write-Host "`n--- Получение информации о драйверах 
 $info = Get-LatestInfoFromUpdater
 
 if (-not $info) {
-    Write-Host "Не удалось получить информацию о драйверах." -ForegroundColor Red
+    Write-Host "Не удалось получить структурированную информацию о драйверах." -ForegroundColor Red
     Write-Host "Возможные причины:" -ForegroundColor Yellow
-    Write-Host "  • Адаптеры Intel не обнаружены (проверьте Диспетчер устройств)." -ForegroundColor Yellow
-    Write-Host "  • Утилита не поддерживает вашу модель адаптера." -ForegroundColor Yellow
-    Write-Host "  • Проблемы с подключением к интернету." -ForegroundColor Yellow
+    Write-Host "  • Ошибка парсинга или неизвестный ответ утилиты." -ForegroundColor Yellow
+    Write-Host "  • Адаптеры Intel заблокированы/отключены в системе." -ForegroundColor Yellow
+    Write-Host "  • Сервер обновлений Intel недоступен." -ForegroundColor Yellow
     if (-not $Silent) { Read-Host "`nНажмите Enter для выхода" }
     exit 1
 }
@@ -439,14 +462,16 @@ if (-not $Silent) {
         exit 0
     }
 } else {
-    Write-Host "`nТихий режим: устанавливаю все доступные обновления..." -ForegroundColor Gray
+    Write-Host "`nТихий режим: запускаю установку обновлений..." -ForegroundColor Gray
 }
 
-# --- 12. ЗАПУСК УСТАНОВКИ ---
+# --- 12. ЗАПУСК УСТАНОВКИ ЧЕРЕЗ УТИЛИТУ ---
 Write-Host "`n--- Запуск установки обновлений Wi-Fi и Bluetooth ---" -ForegroundColor Cyan
 $updaterName = "universal-intel-wifi-bt-driver-updater"
 $updaterPath = (Get-InstalledScript -Name $updaterName).InstalledLocation
 $updaterFullPath = Join-Path -Path $updaterPath -ChildPath "$updaterName.ps1"
+
+# Базовый скрипт принудительно запустит создание точки восстановления, дублировать Checkpoint-Computer не требуется.
 Start-Process -FilePath "powershell.exe" -ArgumentList "-ExecutionPolicy Bypass -NoProfile -File `"$updaterFullPath`" -auto" -Wait -NoNewWindow
 Write-Host "Установка завершена." -ForegroundColor Green
 
