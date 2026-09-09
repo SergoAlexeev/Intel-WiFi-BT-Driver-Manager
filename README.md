@@ -1,8 +1,7 @@
 # Intel Wi-Fi & Bluetooth Driver Manager (v1.9)
 
-[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
-[![Platform: Windows](https://shields.io)](https://microsoft.com)
-[![Language: PowerShell](https://shields.io)](https://microsoft.com)
+[`📄 MIT License`](LICENSE) · `💻 Windows 10/11` · `🛠 PowerShell 5.1+`
+
 
 
 Автоматизированный PowerShell-скрипт для проверки, скачивания и чистой установки актуальных драйверов беспроводных адаптеров **Intel Wi-Fi** и **Intel Wireless Bluetooth**.
