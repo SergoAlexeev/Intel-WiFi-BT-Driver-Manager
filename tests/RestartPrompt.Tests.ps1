@@ -17,7 +17,7 @@ function Assert-Equal($Actual, $Expected, [string]$Case) {
     if ($Actual -ne $Expected) { throw "Failed '$Case': actual '$Actual', expected '$Expected'." }
 }
 
-$script:language = 'en'
+$script:uiLanguage = 'en'
 $os = [pscustomobject]@{ Caption = 'Microsoft Windows 11 Pro'; OSArchitecture = '64-bit'; Version = '10.0.26200' }
 $device = [pscustomobject]@{ DeviceClass = 'DISPLAY'; DeviceID = 'PCI\VEN_8086&DEV_9B41&SUBSYS_00000000'; DeviceName = 'Intel(R) UHD Graphics' }
 Assert-Equal (Test-GraphicsPackageMatch ([pscustomobject]@{ Name = 'Intel Core i7-10710U' }) $device $os) $true '10th Gen Intel graphics'
