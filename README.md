@@ -22,7 +22,7 @@ powershell.exe -NoProfile -ExecutionPolicy Bypass -File .\IntelWiFiBTManager.ps1
 
 ## Расположение файлов
 
-Менеджер можно сохранить в любую папку. Базовая утилита скачивается через `Save-Script` в `%LOCALAPPDATA%\IntelWiFiBTManager\Updater`. Записи `Get-InstalledScript` и сохранённые в них пути прежнего компьютера не используются. Перед запуском проверяются метаданные локального файла и доступная версия PSGallery.
+Менеджер можно сохранить в любую папку. Базовая утилита скачивается через `Save-Script` в `%LOCALAPPDATA%\IntelWiFiBTManager\Updater`. Записи `Get-InstalledScript` и сохранённые в них абсолютные пути не используются. Перед запуском проверяются метаданные локального файла и доступная версия PSGallery.
 
 ## Проверка версии 2.1.0
 
