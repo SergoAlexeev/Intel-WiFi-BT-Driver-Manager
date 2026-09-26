@@ -46,6 +46,8 @@ powershell.exe -NoProfile -ExecutionPolicy Bypass -File .\IntelWiFiBTManager.ps1
 
 Логика выбора пакета и предложения перезагрузки проверяется без установки и без настоящей перезагрузки: `powershell.exe -NoProfile -ExecutionPolicy Bypass -File .\tests\RestartPrompt.Tests.ps1`. Полный сценарий обновления на других устройствах пока не проверен.
 
+Для PR настроена проверка GitHub Actions на Windows PowerShell 5.1: запускаются этот безопасный тест и `-Inventory -Language en`. CI не скачивает драйверы и не запускает установщики; проверку реальной установки на другом оборудовании он не заменяет.
+
 ## Инвентаризация для будущих модулей
 
 ```powershell
