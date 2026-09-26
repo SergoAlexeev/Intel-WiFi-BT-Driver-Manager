@@ -27,18 +27,18 @@ param(
 )
 
 $ErrorActionPreference = 'Stop'
-$script:language = $Language
-if (-not $script:language) {
-    if ($Silent) { $script:language = 'ru' }
+$script:uiLanguage = $Language
+if (-not $script:uiLanguage) {
+    if ($Silent) { $script:uiLanguage = 'ru' }
     else {
         do {
             $selection = Read-Host 'Язык / Language: 1 - Русский, 2 - English [1/2, Enter = 1]'
         } while ($selection -notin @('', '1', '2'))
-        $script:language = if ($selection -eq '2') { 'en' } else { 'ru' }
+        $script:uiLanguage = if ($selection -eq '2') { 'en' } else { 'ru' }
     }
 }
 function L([string]$Ru, [string]$En) {
-    if ($script:language -eq 'en') { return $En }
+    if ($script:uiLanguage -eq 'en') { return $En }
     return $Ru
 }
 $script:logActive = $false
@@ -260,7 +260,7 @@ try {
         $elevatedArguments = @('-NoProfile', '-ExecutionPolicy', 'Bypass', '-File', ('"' + $PSCommandPath + '"'))
         if ($Graphics) { $elevatedArguments += '-Graphics' }
         if ($GraphicsInstallerPath) { $elevatedArguments += @('-GraphicsInstallerPath', ('"' + $GraphicsInstallerPath + '"')) }
-        $elevatedArguments += @('-Language', $script:language)
+        $elevatedArguments += @('-Language', $script:uiLanguage)
         $elevatedArguments += @('-LogPath', ('"' + $LogPath + '"'))
         Write-Host (L 'Запрашиваю права администратора; журнал продолжится в повышенном процессе.' 'Requesting administrator rights; the elevated process will continue the log.')
         Close-ManagerLog
