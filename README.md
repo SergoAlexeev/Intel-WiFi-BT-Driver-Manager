@@ -1,6 +1,6 @@
 # Intel Wi-Fi & Bluetooth Driver Manager v2.1.0
 
-Оболочка PowerShell для [Universal Intel Wi-Fi and Bluetooth Drivers Updater](https://github.com/FirstEverTech/Universal-Intel-WiFi-BT-Updater). Требуются Windows 10/11, PowerShell 5.1+, адаптер Intel, подключение к интернету и права администратора. Установка драйверов выполняется базовой утилитой.
+Менеджер Wi-Fi и Bluetooth Intel на PowerShell. Для установки использует [Universal Intel Wi-Fi and Bluetooth Drivers Updater](https://github.com/FirstEverTech/Universal-Intel-WiFi-BT-Updater). Требуются Windows 10/11, PowerShell 5.1+, адаптер Intel, подключение к интернету и права администратора. Установка драйверов выполняется базовой утилитой.
 
 ## Запуск
 
@@ -18,11 +18,13 @@ powershell.exe -NoProfile -ExecutionPolicy Bypass -File .\IntelWiFiBTManager.ps1
 powershell.exe -NoProfile -ExecutionPolicy Bypass -File .\IntelWiFiBTManager.ps1 -Silent
 ```
 
-`-Silent` скачивает базовую утилиту и запускает ее с `-auto`: доступные обновления драйверов устанавливаются без подтверждения. Код завершения: `0` при успехе, `1` при ошибке. Менеджер сравнивает имя, автора и адрес проекта в метаданных PSGallery; это **не** проверка цифровой подписи пакета. Поведение проверки и установки драйверов определяется базовой утилитой.
+`-Silent` скачивает базовую утилиту и запускает ее с `-auto`: доступные обновления драйверов могут устанавливаться без подтверждения. Этот режим пока не проверен на пользовательском ПК; запускайте его только после проверки интерактивного режима. Код завершения: `0` при успехе, `1` при ошибке. Менеджер сравнивает имя, автора и адрес проекта в метаданных PSGallery; это **не** проверка цифровой подписи пакета. Поведение проверки и установки драйверов определяется базовой утилитой.
 
 ## Расположение файлов
 
 Менеджер можно сохранить в любую папку. Базовая утилита скачивается через `Save-Script` в `%LOCALAPPDATA%\IntelWiFiBTManager\Updater`. Записи `Get-InstalledScript` и сохранённые в них абсолютные пути не используются. Перед запуском проверяются метаданные локального файла и доступная версия PSGallery.
+
+Предыдущий релиз [v2.0](https://github.com/SergoAlexeev/Intel-WiFi-BT-Driver-Manager/releases/tag/v2.0) содержит ошибку проверки автора; используйте v2.1.0.
 
 ## Проверка версии 2.1.0
 
