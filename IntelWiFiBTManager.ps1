@@ -58,6 +58,21 @@ function Close-ManagerLog {
     }
 }
 
+function Test-GraphicsRestartEligible([int]$InstallerExitCode, [bool]$VersionConfirmed) {
+    return ($VersionConfirmed -or $InstallerExitCode -in @(0, 2, 14, 3010))
+}
+
+function Invoke-GraphicsRestartPrompt {
+    if ((Read-Host 'Сохраните открытые документы. Перезагрузить компьютер сейчас? (Y/N)') -notmatch '^[Yy]$') {
+        Write-Host 'Перезагрузка отложена пользователем.'
+        return $false
+    }
+    Write-Host 'Пользователь подтвердил перезагрузку. Завершаю журнал и передаю команду Windows.'
+    Close-ManagerLog
+    Restart-Computer -ErrorAction Stop
+    return $true
+}
+
 function Exit-Manager([int]$Code) {
     Write-Host "Код завершения: $Code; журнал: $LogPath"
     Close-ManagerLog
@@ -187,10 +202,10 @@ function Update-IntelGraphics {
     }
     # Коды 0, 2 и 14 описаны Intel; 3010 — стандартный код Windows для перезагрузки.
     # Неизвестный код можно принять только если новая версия уже видна в системе.
-    if ($process.ExitCode -notin @(0, 2, 14, 3010) -and -not $versionConfirmed) {
+    $script:offerGraphicsRestart = Test-GraphicsRestartEligible $process.ExitCode ([bool]$versionConfirmed)
+    if (-not $script:offerGraphicsRestart) {
         throw "Установщик вернул неизвестный код $($process.ExitCode), новая версия не подтверждена. Проверьте C:\ProgramData\Intel\GFXInstaller\IntelGfx.log."
     }
-    $script:offerGraphicsRestart = $true
 }
 
 try {
@@ -225,18 +240,12 @@ try {
     if ($Graphics) {
         Update-IntelGraphics
         if ($script:offerGraphicsRestart) {
-            if ((Read-Host 'Сохраните открытые документы. Перезагрузить компьютер сейчас? (Y/N)') -match '^[Yy]$') {
-                Write-Host 'Пользователь подтвердил перезагрузку. Завершаю журнал и передаю команду Windows.'
-                Close-ManagerLog
-                try {
-                    Restart-Computer -ErrorAction Stop
-                    exit 0
-                } catch {
-                    [Console]::Error.WriteLine("Не удалось перезагрузить компьютер: $($_.Exception.Message)")
-                    exit 1
-                }
+            try {
+                if (Invoke-GraphicsRestartPrompt) { exit 0 }
+            } catch {
+                [Console]::Error.WriteLine("Не удалось перезагрузить компьютер: $($_.Exception.Message)")
+                exit 1
             }
-            Write-Host 'Перезагрузка отложена пользователем.'
         }
         if (-not $Silent) { Read-Host 'Нажмите Enter для выхода' | Out-Null }
         Exit-Manager 0
