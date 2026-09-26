@@ -1,0 +1,20 @@
+name: Windows PowerShell checks
+
+on:
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  safe-checks:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Check graphics matching and restart prompt without installation
+        shell: powershell
+        run: .\tests\RestartPrompt.Tests.ps1
+      - name: Check read-only inventory with English messages
+        shell: powershell
+        run: .\IntelWiFiBTManager.ps1 -Inventory -Language en
