@@ -1,0 +1,33 @@
+name: Windows PowerShell checks
+
+on:
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  safe-checks:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Parse PowerShell scripts
+        shell: powershell
+        run: |
+          $files = @('.\IntelWiFiBTManager.ps1')
+          if (Test-Path '.\tests\RestartPrompt.Tests.ps1') { $files += '.\tests\RestartPrompt.Tests.ps1' }
+          foreach ($file in $files) {
+            $tokens = $null
+            $errors = $null
+            [System.Management.Automation.Language.Parser]::ParseFile((Resolve-Path $file), [ref]$tokens, [ref]$errors) | Out-Null
+            if ($errors) { $errors | ForEach-Object { Write-Error $_ }; exit 1 }
+          }
+      - name: Check graphics matching and restart prompt without installation
+        if: hashFiles('tests/RestartPrompt.Tests.ps1') != ''
+        shell: powershell
+        run: .\tests\RestartPrompt.Tests.ps1
+      - name: Check read-only inventory with English messages
+        if: hashFiles('tests/RestartPrompt.Tests.ps1') != ''
+        shell: powershell
+        run: .\IntelWiFiBTManager.ps1 -Inventory -Language en
