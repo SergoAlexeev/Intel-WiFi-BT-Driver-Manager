@@ -91,6 +91,13 @@ try {
         $sameBytes = (Get-FileHash -LiteralPath $installedInfPath -Algorithm SHA256).Hash -eq
             (Get-FileHash -LiteralPath $infs[0].FullName -Algorithm SHA256).Hash
     }
+    $nativeCatalogForSameBytes = 'UNVERIFIED'
+    if ($sameBytes -eq $true) {
+        $installedSignature = Get-AuthenticodeSignature -LiteralPath $installedInfPath
+        if ($installedSignature.Status -eq 'Valid' -and $installedSignature.SignatureType -eq 'Catalog') {
+            $nativeCatalogForSameBytes = 'PASS'
+        }
+    }
     $version = [version]$installed.DriverVersion
     $candidate = [version]$meta.driverVersion
     $result = if ($version -eq $candidate) { 'SAME_VERSION' }
@@ -98,6 +105,7 @@ try {
               else { 'CANDIDATE_REQUIRES_REVIEW' }
     Say 'Этап 3/3. Сравниваю версию и байты INF с установленным драйвером.' 'Step 3/3. Comparing the version and INF bytes with the installed driver.'
     Say "Установлено: $version; CAB INF: $candidate; совпадение INF по байтам: $sameBytes; результат: $result." "Installed: $version; CAB INF: $candidate; installed INF bytes match: $sameBytes; result: $result."
+    Say "Каталог Windows для побайтно совпадающего установленного INF: $nativeCatalogForSameBytes (не удостоверяет извлечённый CAT)." "Windows catalog for the identical installed INF: $nativeCatalogForSameBytes (does not verify the extracted CAT)."
     Say "Подпись CAT: $($audit.CatalogSignature); принадлежность INF этому CAT: $($audit.InfCatalogMembership). Каталожная запись Microsoft и публикация Intel для этого пакета пока не установлены. Никакой драйвер не устанавливался." "CAT signature: $($audit.CatalogSignature); INF/CAT membership: $($audit.InfCatalogMembership). No Microsoft Catalog record or Intel release page for this CAB has been confirmed. No driver was installed."
     [PSCustomObject]@{
         Status = $result
@@ -107,6 +115,7 @@ try {
         CabHash = 'PASS'
         CatalogSignature = $audit.CatalogSignature
         InfCatalogMembership = $audit.InfCatalogMembership
+        WindowsCatalogForSameBytes = $nativeCatalogForSameBytes
         InstalledInfSameBytes = $sameBytes
         Installation = 'NOT_STARTED'
         SourceHost = 'download.windowsupdate.com'
