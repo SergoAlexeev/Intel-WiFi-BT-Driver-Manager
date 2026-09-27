@@ -124,10 +124,18 @@ try {
     $installedReport = Join-Path $candidateRoot 'installed.json'
     $candidateReport = Join-Path $candidateRoot 'candidate.json'
     $script:CandidateManifest = Join-Path $candidateRoot 'candidates.json'
-    Set-Content -LiteralPath $candidateInf -Encoding ASCII -Value '[Version]'
+    Set-Content -LiteralPath $candidateInf -Encoding ASCII -Value @'
+[Version]
+Signature="$WINDOWS NT$"
+DriverVer=09/01/2026,24.80.0.1
+[Manufacturer]
+Intel=Intel,NTamd64
+[Intel.NTamd64]
+AX201=Install,PCI\VEN_8086&DEV_02F0&SUBSYS_00748086
+'@
     Set-Content -LiteralPath $packageFile -Encoding ASCII -Value 'local test bytes'
     @([pscustomobject]@{ HardwareId='PCI\VEN_8086&DEV_02F0&SUBSYS_00748086'; DriverVersion='24.70.0.3'; ModelSection='Intel.NTamd64'; InfFile='old.inf' }) | ConvertTo-Json | Set-Content -LiteralPath $installedReport -Encoding UTF8
-    @([pscustomobject]@{ HardwareId='PCI\VEN_8086&DEV_02F0&SUBSYS_00748086'; DriverVersion='24.80.0.1'; ModelSection='Intel.NTamd64'; InfFile=$candidateInf }) | ConvertTo-Json | Set-Content -LiteralPath $candidateReport -Encoding UTF8
+    & (Join-Path $script:managerRoot 'tools\Get-InfDriverReport.ps1') -Path $candidateInf -OutputPath $candidateReport
     $testEntry = [pscustomobject]@{
         deviceId=$id; installedReport=$installedReport; candidateReport=$candidateReport
         candidateInf=$candidateInf; packageFile=$packageFile
