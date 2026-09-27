@@ -14,6 +14,8 @@
     Показывает сведения об устройствах Intel и платформе без установки драйверов.
 .PARAMETER CheckUpdates
     Проверяет версии Wi-Fi, Bluetooth и Graphics без скачивания драйверов и установки.
+.PARAMETER CandidateManifest
+    Необязательный JSON со скачанными кандидатами для локальной проверки обнаруженных устройств.
 .PARAMETER Language
     Язык сообщений менеджера: ru или en. Без параметра предлагается выбор.
 .PARAMETER LogPath
@@ -25,6 +27,7 @@ param(
     [string]$GraphicsInstallerPath,
     [switch]$Inventory,
     [switch]$CheckUpdates,
+    [string]$CandidateManifest,
     [ValidateSet('ru', 'en')][string]$Language,
     [string]$LogPath
 )
@@ -79,6 +82,7 @@ $bluetoothCatalogueUri = 'https://raw.githubusercontent.com/FirstEverTech/Univer
 $script:offerGraphicsRestart = $false
 $script:workDirectory = $null
 $script:workRoot = $null
+$script:managerRoot = $PSScriptRoot
 
 function New-ManagerWorkDirectory([string]$LocalDataBase) {
     if ($script:workDirectory) { return $script:workDirectory }
@@ -302,6 +306,53 @@ function Get-GraphicsCandidateMetadata([string]$CataloguePath) {
     }
 }
 
+function Show-LocalCandidateChecks($DetectedDevices) {
+    if (-not $CandidateManifest) { return }
+    $manifestPath = (Resolve-Path -LiteralPath $CandidateManifest -ErrorAction Stop).ProviderPath
+    $manifest = Get-Content -LiteralPath $manifestPath -Raw -ErrorAction Stop | ConvertFrom-Json -ErrorAction Stop
+    if (-not $manifest.entries -or @($manifest.entries).Count -eq 0) {
+        throw (L 'Список кандидатов пуст или отсутствует поле entries.' 'Candidate list is empty or missing entries.')
+    }
+    $checker = Join-Path $script:managerRoot 'tools\Test-DriverCandidate.ps1'
+    if (-not (Test-Path -LiteralPath $checker -PathType Leaf)) {
+        throw (L 'Модуль проверки пакета не найден рядом с менеджером в папке tools.' 'Package check module is missing from the tools folder next to the manager.')
+    }
+    Write-Host (L "Локальные кандидаты из $manifestPath : сверяю только точные ID обнаруженных устройств Intel." "Local candidates in $manifestPath : checking exact IDs of detected Intel devices only.") -ForegroundColor Cyan
+    $seen = @{}
+    foreach ($entry in @($manifest.entries)) {
+        $deviceId = [string]$entry.deviceId
+        if (-not $deviceId -or $seen.ContainsKey($deviceId)) {
+            throw (L 'В списке есть пустой или повторяющийся ID устройства.' 'Candidate list has a missing or duplicate device ID.')
+        }
+        $seen[$deviceId] = $true
+        $matches = @($DetectedDevices | Where-Object { $_.DeviceID -ieq $deviceId })
+        if ($matches.Count -ne 1) {
+            Write-Warning (L "Кандидат для $deviceId пропущен: устройство Intel с точным ID не найдено." "Candidate for $deviceId skipped: no Intel device with that exact ID was detected.")
+            continue
+        }
+        $arguments = @{ HardwareId = $deviceId; VerifyInstalledDevice = $true; Language = $script:uiLanguage }
+        foreach ($field in @('installedReport', 'candidateReport', 'candidateInf', 'packageFile')) {
+            $value = [string]$entry.$field
+            if (-not $value -or -not [IO.Path]::IsPathRooted($value) -or -not (Test-Path -LiteralPath $value -PathType Leaf)) {
+                throw (L "Для $deviceId требуется существующий абсолютный путь $field." "$deviceId requires an existing absolute path for $field.")
+            }
+            $parameter = @{ installedReport='InstalledReport'; candidateReport='CandidateReport'; candidateInf='CandidateInf'; packageFile='PackageFile' }[$field]
+            $arguments[$parameter] = $value
+        }
+        foreach ($field in @('expectedSha256', 'expectedSha512', 'archiveEntry', 'sourceUrl', 'signToolPath')) {
+            if ($entry.$field) {
+                $parameter = @{ expectedSha256='ExpectedSha256'; expectedSha512='ExpectedSha512'; archiveEntry='ArchiveEntry'; sourceUrl='SourceUrl'; signToolPath='SignToolPath' }[$field]
+                $arguments[$parameter] = [string]$entry.$field
+            }
+        }
+        if (-not $entry.expectedSha256 -and -not $entry.expectedSha512) {
+            Write-Warning (L "Для $deviceId нет заранее известного хеша; источник пакета остаётся непроверенным." "$deviceId has no pre-established hash; package provenance remains unverified.")
+        }
+        $decision = & $checker @arguments
+        Write-Host (L "Проверка $($matches[0].DeviceName): $($decision.Verdict). Установка не выполнялась." "Assessment for $($matches[0].DeviceName): $($decision.Verdict). No installation occurred.")
+    }
+}
+
 function Show-UpdateCheck {
     Write-Host (L 'Проверка обновлений: только чтение версий и таблиц совместимости. Драйверы не загружаются и не устанавливаются.' 'Update check: reading versions and compatibility tables only. No drivers are downloaded or installed.') -ForegroundColor Cyan
     $processor = Get-CimInstance Win32_Processor | Select-Object -First 1
@@ -445,6 +496,7 @@ function Show-UpdateCheck {
         $otherWireless | Select-Object DeviceClass, DeviceName, DriverVersion | Format-Table -AutoSize -Wrap
         Write-Host (L 'Для этих устройств модуль Intel не подходит; их доступные обновления программа пока не проверяет. Никаких действий по установке не требуется. Если обновление понадобится, сначала проверьте поддержку своей модели и версии Windows у производителя компьютера.' 'The Intel module does not apply to these devices; the manager cannot check their available updates yet. No installation action is needed. If an update becomes necessary, first check support for your model and Windows version with the computer manufacturer.') -ForegroundColor Yellow
     }
+    Show-LocalCandidateChecks $devices
     $matchedCount = @($results | Where-Object { $_.Status -eq (L 'Версия совпадает' 'Version matches') }).Count
     $newerCount = @($results | Where-Object { $_.Status -eq (L 'Доступно обновление' 'Update available') }).Count
     $manualCount = @($results | Where-Object { $_.Status -eq (L 'Требуется ручная проверка' 'Manual review needed') }).Count
@@ -548,6 +600,7 @@ function Update-IntelGraphics {
 
 try {
     if ($GraphicsInstallerPath -and -not $Graphics) { throw (L 'Параметр -GraphicsInstallerPath используется только с -Graphics.' 'Use -GraphicsInstallerPath only together with -Graphics.') }
+    if ($CandidateManifest -and -not $CheckUpdates) { throw (L 'Параметр -CandidateManifest требует -CheckUpdates.' 'CandidateManifest requires CheckUpdates.') }
     if ($CheckUpdates) {
         if ($Inventory -or $Graphics -or $Silent -or $GraphicsInstallerPath) { throw (L 'Параметр -CheckUpdates используется отдельно от других режимов.' 'Use -CheckUpdates separately from other modes.') }
         Show-UpdateCheck
