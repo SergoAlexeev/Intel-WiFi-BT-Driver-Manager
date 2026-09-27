@@ -277,9 +277,9 @@ function Get-LocalWirelessCatalogue {
     }
 }
 
-function Get-GraphicsCandidateMetadata {
+function Get-GraphicsCandidateMetadata([string]$CataloguePath) {
     # The standalone manager still works when the optional data folder is absent.
-    $path = [IO.Path]::Combine($PSScriptRoot, 'data', 'driver-packages.json')
+    $path = if ($CataloguePath) { $CataloguePath } else { [IO.Path]::Combine($PSScriptRoot, 'data', 'driver-packages.json') }
     if (-not [IO.File]::Exists($path)) {
         return [PSCustomObject]@{ Source = $graphicsUri; ReviewedOn = ''; Detail = (L 'Встроенный закреплённый пакет; файл каталога рядом со скриптом не найден.' 'Embedded pinned package; the catalogue file was not found next to the script.'); Catalogue = $false }
     }
