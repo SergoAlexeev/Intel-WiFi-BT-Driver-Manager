@@ -17,6 +17,9 @@ DriverVer=09/01/2026,24.80.0.1
     if ($report.HashCheck -ne 'PASS' -or $report.Status -ne 'UNVERIFIED' -or $report.InfCatalogMembership -ne 'UNVERIFIED') {
         throw 'Missing catalog was treated as verified.'
     }
+    $sha512 = (Get-FileHash -LiteralPath $archive -Algorithm SHA512).Hash
+    $shaReport = & $auditor -InfPath $inf -PackageFile $archive -ExpectedSha512 $sha512
+    if ($shaReport.HashCheck -ne 'PASS' -or $shaReport.HashAlgorithm -ne 'SHA512') { throw 'Expected SHA-512 was not checked.' }
     $report = & $auditor -InfPath $inf -PackageFile $archive -ExpectedSha256 ('0' * 64)
     if ($report.HashCheck -ne 'FAIL' -or $report.Status -ne 'FAIL') { throw 'Wrong hash was accepted.' }
     Set-Content -LiteralPath (Join-Path $root 'sample.cat') -Encoding ASCII -Value 'not a signed catalog'
