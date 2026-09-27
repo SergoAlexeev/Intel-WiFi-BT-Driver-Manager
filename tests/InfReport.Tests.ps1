@@ -33,7 +33,7 @@ Continued="Another Intel device"
     & $generator -Path $root -OutputPath $json | Out-Null
     $rows = Get-Content -LiteralPath $json -Raw | ConvertFrom-Json
     if ($rows.Count -ne 7) { throw "Expected 7 hardware IDs, got $($rows.Count)" }
-    if (@($rows | Where-Object { $_.HardwareId -eq 'PCI\VEN_8086&DEV_02F0&SUBSYS_12345678' -and $_.DriverVersion -eq '24.70.0.3' -and $_.Provider -eq 'Intel Corporation' -and $_.DeviceName -eq 'Intel Wi-Fi 6 AX201' -and $_.ModelSection -eq 'Intel.NTamd64.10.0' }).Count -ne 1) { throw 'INF parsing or string resolution failed' }
+    if (@($rows | Where-Object { $_.HardwareId -eq 'PCI\VEN_8086&DEV_02F0&SUBSYS_12345678' -and $_.DriverVersion -eq '24.70.0.3' -and $_.Provider -eq 'Intel Corporation' -and $_.DeviceName -eq 'Intel Wi-Fi 6 AX201' -and $_.ModelSection -eq 'Intel.NTamd64.10.0' -and $_.InstallSection -eq 'Install' }).Count -ne 1) { throw 'INF parsing or string resolution failed' }
     if (@($rows | Where-Object { $_.HardwareId -eq 'PCI\VEN_8086&DEV_02F0&SUBSYS_87654321' -and $_.DeviceName -eq 'Other Intel device' }).Count -ne 1) { throw 'SUBSYS-specific model mapping failed' }
     if (@($rows | Where-Object { $_.HardwareId -eq 'PCI\VEN_8086&DEV_02F0&SUBSYS_22222222' -and $_.InstallSection -eq 'Install2' }).Count -ne 1) { throw 'Continued model line was lost' }
     if (@($rows | Where-Object { $_.HardwareId -eq 'PCI\VEN_8086&DEV_02F0&SUBSYS_12345678' }).Count -ne 2) { throw 'Ambiguous model mappings were silently discarded' }
