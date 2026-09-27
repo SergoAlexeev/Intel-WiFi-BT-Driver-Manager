@@ -445,6 +445,12 @@ function Show-UpdateCheck {
         $otherWireless | Select-Object DeviceClass, DeviceName, DriverVersion | Format-Table -AutoSize -Wrap
         Write-Host (L 'Для этих устройств модуль Intel не подходит; их доступные обновления программа пока не проверяет. Никаких действий по установке не требуется. Если обновление понадобится, сначала проверьте поддержку своей модели и версии Windows у производителя компьютера.' 'The Intel module does not apply to these devices; the manager cannot check their available updates yet. No installation action is needed. If an update becomes necessary, first check support for your model and Windows version with the computer manufacturer.') -ForegroundColor Yellow
     }
+    $matchedCount = @($results | Where-Object { $_.Status -eq (L 'Версия совпадает' 'Version matches') }).Count
+    $newerCount = @($results | Where-Object { $_.Status -eq (L 'Доступно обновление' 'Update available') }).Count
+    $manualCount = @($results | Where-Object { $_.Status -eq (L 'Требуется ручная проверка' 'Manual review needed') }).Count
+    $unknownCount = @($results | Where-Object { $_.Status -eq (L 'Не удалось определить' 'Unknown') }).Count
+    Write-Host (L "Итог: совпадений с источниками — $matchedCount; кандидатов с более высокой версией — $newerCount; нужна ручная проверка — $manualCount; версия не определена — $unknownCount." "Summary: versions matching sources: $matchedCount; candidates with a higher version: $newerCount; manual review: $manualCount; version unknown: $unknownCount.") -ForegroundColor Cyan
+    Write-Host (L 'Это сравнение с доступными источниками, а не полный поиск всех новых выпусков Intel. Совпадение версий не доказывает, что обновлений больше нет.' 'This compares against available sources; it is not a complete search for all new Intel releases. Matching versions do not prove that no newer update exists.') -ForegroundColor Yellow
     Write-Host (L 'Wi-Fi/Bluetooth: сначала локальный проверенный снимок; для остальных ID — таблицы стороннего проекта. Оба источника справочные: совпадение не гарантирует актуальность, совместимость или доступность пакета. Установка Wi-Fi/Bluetooth пока зависит от базовой утилиты. Чипсет, BIOS и микрокод не проверяются.' 'Wi-Fi/Bluetooth: reviewed local snapshot first; third-party tables for other IDs. Both are advisory: a match does not guarantee freshness, compatibility or availability. Wi-Fi/Bluetooth installation still depends on the base tool. Chipset, BIOS and microcode are not checked.') -ForegroundColor Yellow
 }
 
