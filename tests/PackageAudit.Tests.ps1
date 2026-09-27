@@ -25,6 +25,7 @@ DriverVer=09/01/2026,24.80.0.1
     Set-Content -LiteralPath (Join-Path $root 'sample.cat') -Encoding ASCII -Value 'not a signed catalog'
     $report = & $auditor -InfPath $inf
     if ($report.CatalogSignature -ne 'FAIL' -or $report.Status -ne 'FAIL') { throw 'Unsigned catalog was accepted.' }
+    Remove-Item -LiteralPath (Join-Path $root 'sample.cat') -Force
     Add-Type -AssemblyName System.IO.Compression.FileSystem
     $zipSource = Join-Path $root 'zip-source'
     $zipFolder = Join-Path $zipSource 'drivers'
