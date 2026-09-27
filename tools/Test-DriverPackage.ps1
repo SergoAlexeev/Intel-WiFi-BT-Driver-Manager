@@ -64,8 +64,13 @@ if ($catalogNames.Count -eq 1 -and $catalogNames[0] -match '^[^\\/:*?"<>|]+\.cat
         }
         if ($SignToolPath) {
             # /kp applies kernel-mode policy; /c checks this INF against this CAT.
-            $null = & $SignToolPath verify /kp /c $catalogPath $inf.FullName 2>&1
-            $membership = if ($LASTEXITCODE -eq 0) { 'PASS' } else { 'FAIL' }
+            $previousAction = $ErrorActionPreference
+            try {
+                $ErrorActionPreference = 'Continue'
+                $null = & $SignToolPath verify /kp /c $catalogPath $inf.FullName 2>&1
+                $signToolExit = $LASTEXITCODE
+            } finally { $ErrorActionPreference = $previousAction }
+            $membership = if ($signToolExit -eq 0) { 'PASS' } else { 'FAIL' }
         }
     }
 }
