@@ -18,6 +18,7 @@ jobs:
           $files = @('.\IntelWiFiBTManager.ps1')
           if (Test-Path '.\tests\RestartPrompt.Tests.ps1') { $files += '.\tests\RestartPrompt.Tests.ps1' }
           if (Test-Path '.\tests\UpdateCheck.Tests.ps1') { $files += '.\tests\UpdateCheck.Tests.ps1' }
+          $files += '.\tools\ConsoleUi.ps1', '.\tests\ConsoleUi.Tests.ps1'
           $files += '.\tools\Get-InfDriverReport.ps1', '.\tests\InfReport.Tests.ps1', '.\tools\Compare-InfDriverReports.ps1', '.\tests\InfCompare.Tests.ps1', '.\tools\Test-DriverPackage.ps1', '.\tests\PackageAudit.Tests.ps1', '.\tests\WorkDirectory.Tests.ps1', '.\tools\Test-DriverCatalogue.ps1', '.\tests\DriverCatalogue.Tests.ps1', '.\tools\Test-DriverCandidate.ps1', '.\tests\DriverCandidate.Tests.ps1', '.\tests\LiveInstalledCandidate.ps1', '.\tools\Test-OfficialWifiCandidate.ps1', '.\tests\OfficialWifiCandidate.Tests.ps1', '.\tools\Invoke-OfficialWifiReadOnlyCheck.ps1', '.\tests\OfficialWifiDownload.Tests.ps1', '.\tests\OfficialWifiArchive.Integration.ps1', '.\tools\Test-OfficialBluetoothPackage.ps1', '.\tests\OfficialBluetoothPackage.Tests.ps1', '.\tools\Invoke-OfficialBluetoothReadOnlyCheck.ps1', '.\tests\OfficialBluetoothDownload.Tests.ps1', '.\tools\Get-InstalledBluetoothEvidence.ps1', '.\tools\Invoke-MicrosoftBluetoothCabReadOnlyCheck.ps1', '.\tests\MicrosoftBluetoothCab.Tests.ps1', '.\tools\Install-LocalSignTool.ps1', '.\tests\LocalSignTool.Tests.ps1', '.\tests\SignToolCab.Integration.ps1'
           foreach ($file in $files) {
             $tokens = $null
@@ -25,6 +26,9 @@ jobs:
             [System.Management.Automation.Language.Parser]::ParseFile((Resolve-Path $file), [ref]$tokens, [ref]$errors) | Out-Null
             if ($errors) { $errors | ForEach-Object { Write-Error $_ }; exit 1 }
           }
+      - name: Check console status labels and choices
+        shell: powershell
+        run: .\tests\ConsoleUi.Tests.ps1
       - name: Check graphics matching and restart prompt without installation
         if: hashFiles('tests/RestartPrompt.Tests.ps1') != ''
         shell: powershell
