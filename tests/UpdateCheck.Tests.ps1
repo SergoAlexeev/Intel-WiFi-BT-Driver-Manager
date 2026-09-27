@@ -144,7 +144,7 @@ AX201=Install,PCI\VEN_8086&DEV_02F0&SUBSYS_00748086
     @{ entries = @($testEntry) } | ConvertTo-Json -Depth 5 | Set-Content -LiteralPath $script:CandidateManifest -Encoding UTF8
     $intelDevices = @(Get-CimInstance Win32_PnPSignedDriver | Where-Object { $_.DeviceID -eq $id })
     $candidateOutput = Show-LocalCandidateChecks $intelDevices $sixthOs 6>&1 | Out-String
-    if ($candidateOutput -notmatch 'MANUAL_REVIEW' -or $candidateOutput -notmatch 'Installed device' -or $candidateOutput -notmatch 'Target: architecture amd64; Windows build 26200') {
+    if ($candidateOutput -notmatch 'MANUAL_REVIEW' -or $candidateOutput -notmatch 'Installed device' -or $candidateOutput -notmatch 'Target: architecture amd64; Windows build 26200' -or $candidateOutput -notmatch 'Assessment for Intel\(R\) Wi-Fi 6 AX201: MANUAL_REVIEW') {
         throw "Real detected device was not linked to candidate checks: $candidateOutput"
     }
     $testEntry.deviceId = 'PCI\VEN_8086&DEV_02F0&SUBSYS_00000000\1'
