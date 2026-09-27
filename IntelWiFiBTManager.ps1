@@ -224,13 +224,22 @@ function Get-DriverCatalogueKey($Device, [ValidateSet('WiFi', 'Bluetooth')][stri
     return $null
 }
 
+function Get-LocalWirelessKey($Device, [ValidateSet('WiFi', 'Bluetooth')][string]$Kind) {
+    if ($Kind -eq 'WiFi' -and $Device.DeviceID -match '(?i)^PCI\\VEN_8086&DEV_([0-9A-F]{4})&SUBSYS_([0-9A-F]{8})(?:&|\\|$)') {
+        return "WiFi:PCI:$($Matches[1].ToUpperInvariant()):SUBSYS_$($Matches[2].ToUpperInvariant())"
+    }
+    $key = Get-DriverCatalogueKey $Device $Kind
+    if ($Kind -eq 'Bluetooth' -and $key) { return "Bluetooth:$key" }
+    return $null
+}
+
 function Get-LocalWirelessCatalogue {
     # Curated snapshot, not a live Intel feed. Review each exact ID/version before changing it.
     # These versions were observed on AX201 hardware on 2026-09-27 and cross-checked
-    # with the FirstEverTech tables. DEV_02F0 spans different models and requires
-    # SUBSYS for a model-specific assertion. This is a package INF snapshot only.
+    # with the FirstEverTech tables. The Wi-Fi row is matched by full DEV + SUBSYS,
+    # because DEV_02F0 also appears with other model names in the exported INF.
     return @{
-        'WiFi:PCI:02F0' = [PSCustomObject]@{ Version = [version]'24.70.0.3'; Checked = '2026-09-27'; Source = 'https://www.intel.com/content/www/us/en/download/19351/intel-wireless-wi-fi-drivers-for-windows-10-and-windows-11.html' }
+        'WiFi:PCI:02F0:SUBSYS_00748086' = [PSCustomObject]@{ Version = [version]'24.70.0.3'; Checked = '2026-09-27'; Source = 'https://www.intel.com/content/www/us/en/download/19351/intel-wireless-wi-fi-drivers-for-windows-10-and-windows-11.html' }
         'Bluetooth:USB:0026' = [PSCustomObject]@{ Version = [version]'24.80.0.2'; Checked = '2026-09-27'; Source = 'https://www.intel.com/content/www/us/en/download/18649/intel-wireless-bluetooth-drivers-for-windows-10-and-windows-11.html' }
     }
 }
@@ -260,8 +269,9 @@ function Show-UpdateCheck {
     foreach ($source in @(@('WiFi', $wifiCatalogueUri), @('Bluetooth', $bluetoothCatalogueUri))) {
         $deviceClass = if ($source[0] -eq 'WiFi') { 'NET' } else { 'Bluetooth' }
         $unmapped = @($devices | Where-Object {
+            $candidate = Get-LocalWirelessKey $_ $source[0]
             $_.DeviceClass -eq $deviceClass -and
-            -not $localCatalogue.ContainsKey("$($source[0]):$(Get-DriverCatalogueKey $_ $source[0])")
+            -not ($candidate -and $localCatalogue.ContainsKey($candidate))
         })
         if (-not $unmapped.Count) { continue }
         try {
@@ -301,8 +311,8 @@ function Show-UpdateCheck {
             }
         } else {
             $key = Get-DriverCatalogueKey $device $kind
-            $localKey = "${kind}:$key"
-            if ($key -and $localCatalogue.ContainsKey($localKey)) {
+            $localKey = Get-LocalWirelessKey $device $kind
+            if ($localKey -and $localCatalogue.ContainsKey($localKey)) {
                 $entry = $localCatalogue[$localKey]
                 $sourceLabel = "$($entry.Source) ($($entry.Checked); local snapshot)"
                 if ((Get-Date).Date -le ([datetime]::ParseExact($entry.Checked, 'yyyy-MM-dd', [Globalization.CultureInfo]::InvariantCulture)).AddDays(30)) {
@@ -311,8 +321,8 @@ function Show-UpdateCheck {
                 } else {
                     $note = L 'Локальный снимок старше 30 дней; сравнение версий отключено до повторной проверки каталога.' 'Local snapshot is older than 30 days; version comparison is disabled until the catalogue is reviewed.'
                 }
-                if ($localKey -eq 'WiFi:PCI:02F0') {
-                    $note += L ' DEV_02F0 встречается у нескольких моделей Intel: для определения конкретной модели нужен также SUBSYS из полного ID устройства. Версия INF относится к экспортированному пакету; совместимость нового пакета этим не подтверждена.' ' DEV_02F0 occurs on multiple Intel models: the full device ID including SUBSYS is needed to identify the model. This INF version belongs to the exported package and does not prove compatibility of a future package.'
+                if ($kind -eq 'WiFi') {
+                    $note += L ' Совпадение подтверждено по DEV и SUBSYS в экспортированном INF. Совместимость будущего пакета этим не подтверждена.' ' DEV and SUBSYS were matched in the exported INF. This does not prove compatibility of a future package.'
                 }
             } elseif ($key -and $catalogues.ContainsKey($kind) -and $catalogues[$kind].ContainsKey($key)) {
                 $available = $catalogues[$kind][$key]
@@ -328,7 +338,7 @@ function Show-UpdateCheck {
                 else { $status = L 'Установлена более новая версия' 'Newer version installed' }
             }
         } catch { }
-        if ($localKey -eq 'WiFi:PCI:02F0' -and $available -and $installed -lt $available) {
+        if ($kind -eq 'WiFi' -and $localKey -and $available -and $installed -lt $available) {
             $status = L 'Требуется ручная проверка' 'Manual review needed'
         }
         if ($note -and $kind -eq 'Graphics') {
