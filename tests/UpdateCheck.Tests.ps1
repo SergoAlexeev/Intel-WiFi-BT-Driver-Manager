@@ -4,7 +4,7 @@ $tokens = $null
 $parseErrors = $null
 $ast = [System.Management.Automation.Language.Parser]::ParseFile($manager, [ref]$tokens, [ref]$parseErrors)
 if ($parseErrors.Count -gt 0) { throw 'Manager does not parse' }
-foreach ($name in @('Convert-DriverCatalogue', 'Get-DriverCatalogueKey', 'Get-LocalWirelessCatalogue', 'Test-Graphics6thGenReference', 'Get-GraphicsReferenceFamily', 'Show-UpdateCheck')) {
+foreach ($name in @('Convert-DriverCatalogue', 'Get-DriverCatalogueKey', 'Get-LocalWirelessKey', 'Get-LocalWirelessCatalogue', 'Test-Graphics6thGenReference', 'Get-GraphicsReferenceFamily', 'Show-UpdateCheck')) {
     $definitions = @($ast.FindAll({ param($node) $node -is [System.Management.Automation.Language.FunctionDefinitionAst] -and $node.Name -eq $name }, $true))
     if ($definitions.Count -ne 1) { throw "Expected one definition of $name" }
     . ([scriptblock]::Create($definitions[0].Extent.Text))
@@ -37,9 +37,13 @@ if ((Get-DriverCatalogueKey $device Bluetooth) -ne 'USB:0026') { throw 'Bluetoot
 $device.DeviceID = 'USB\VID_1234&PID_0026\1'
 if (Get-DriverCatalogueKey $device Bluetooth) { throw 'Non-Intel device was matched' }
 $snapshot = Get-LocalWirelessCatalogue
-if ($snapshot['WiFi:PCI:02F0'].Version -ne [version]'24.70.0.3' -or
+if ($snapshot['WiFi:PCI:02F0:SUBSYS_00748086'].Version -ne [version]'24.70.0.3' -or
     $snapshot['Bluetooth:USB:0026'].Version -ne [version]'24.80.0.2' -or
     $snapshot.ContainsKey('WiFi:PCI:2723')) { throw 'Local catalogue coverage is incorrect' }
+$device.DeviceID = 'PCI\VEN_8086&DEV_02F0&SUBSYS_00748086&REV_00\1'
+if ((Get-LocalWirelessKey $device WiFi) -ne 'WiFi:PCI:02F0:SUBSYS_00748086') { throw 'Exact Wi-Fi local key failed' }
+$device.DeviceID = 'PCI\VEN_8086&DEV_02F0&SUBSYS_00308086\1'
+if ($snapshot.ContainsKey((Get-LocalWirelessKey $device WiFi))) { throw 'Different SUBSYS matched local catalogue' }
 $sixthDevice = [pscustomobject]@{ DeviceClass = 'DISPLAY'; DeviceID = 'PCI\VEN_8086&DEV_191B&SUBSYS_00000000\1'; DeviceName = 'Intel(R) HD Graphics 530' }
 $sixthCpu = [pscustomobject]@{ Name = 'Intel(R) Core(TM) i7-6700HQ CPU @ 2.60GHz' }
 $sixthOs = [pscustomobject]@{ Caption = 'Windows 11 Home'; OSArchitecture = '64-bit' }
@@ -82,7 +86,7 @@ function Get-CimInstance($ClassName) {
             [pscustomobject]@{ DeviceClass = 'DISPLAY'; DeviceID = 'PCI\VEN_8086&DEV_191B\1'; DeviceName = 'Intel(R) HD Graphics 530'; DriverVersion = '31.0.101.2125' }
             [pscustomobject]@{ DeviceClass = 'NET'; DeviceID = 'PCI\VEN_168C&DEV_0042\1'; DeviceName = 'Qualcomm Wireless'; DriverVersion = '12.0.0.1259' }
             if ($script:mockIntelWireless) {
-                [pscustomobject]@{ DeviceClass = 'NET'; DeviceID = 'PCI\VEN_8086&DEV_02F0\1'; DeviceName = 'Intel(R) Wi-Fi 6 AX201'; DriverVersion = '24.70.0.3' }
+                [pscustomobject]@{ DeviceClass = 'NET'; DeviceID = 'PCI\VEN_8086&DEV_02F0&SUBSYS_00748086\1'; DeviceName = 'Intel(R) Wi-Fi 6 AX201'; DriverVersion = '24.70.0.3' }
                 [pscustomobject]@{ DeviceClass = 'BLUETOOTH'; DeviceID = 'USB\VID_8087&PID_0026\1'; DeviceName = 'Intel(R) Wireless Bluetooth(R)'; DriverVersion = '24.80.0.2' }
             }
         }
