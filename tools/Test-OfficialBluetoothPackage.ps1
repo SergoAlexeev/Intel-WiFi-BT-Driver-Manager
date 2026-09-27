@@ -1,4 +1,4 @@
-<#
+﻿<#
 .SYNOPSIS
     Audits a locally downloaded official Intel Bluetooth EXE without running it.
 .DESCRIPTION
