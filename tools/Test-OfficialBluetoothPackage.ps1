@@ -41,10 +41,10 @@ if ($wifi.Count -ne 1) { throw 'The reviewed Intel AX201 Wi-Fi device was not fo
 $devices = @(Get-CimInstance Win32_PnPSignedDriver | Where-Object {
     $_.DeviceClass -eq 'BLUETOOTH' -and
     $_.DeviceName -eq 'Intel(R) Wireless Bluetooth(R)' -and
-    $_.DeviceID -like 'USB\VID_8087*'
+    $_.DeviceID -like 'USB\VID_8087&PID_0026*'
 })
 if ($devices.Count -ne 1) {
-    throw "Expected exactly one installed Intel Wireless Bluetooth device with USB VID_8087; found $($devices.Count)."
+    throw "Expected exactly one installed Intel Wireless Bluetooth device with USB VID_8087 and PID_0026; found $($devices.Count)."
 }
 $installed = $devices[0].DriverVersion
 if ($installed -notmatch '^\d+(\.\d+){3}$') { throw 'Installed Bluetooth version is not a four-part numeric version.' }
