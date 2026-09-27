@@ -16,6 +16,8 @@
     Проверяет версии Wi-Fi, Bluetooth и Graphics без скачивания драйверов и установки.
 .PARAMETER VerifyBluetoothCab
     При -CheckUpdates с согласия скачивает и проверяет закреплённый Bluetooth CAB для PID_0026 без установки.
+.PARAMETER PrepareSignTool
+    При -VerifyBluetoothCab предлагает локально подготовить проверенный Microsoft SignTool для проверки INF/CAT.
 .PARAMETER CandidateManifest
     Необязательный JSON со скачанными кандидатами для локальной проверки обнаруженных устройств.
 .PARAMETER Language
@@ -30,6 +32,7 @@ param(
     [switch]$Inventory,
     [switch]$CheckUpdates,
     [switch]$VerifyBluetoothCab,
+    [switch]$PrepareSignTool,
     [string]$CandidateManifest,
     [ValidateSet('ru', 'en')][string]$Language,
     [string]$LogPath
@@ -418,7 +421,8 @@ function Show-UpdateCheck {
                 throw (L 'Модуль проверки Bluetooth CAB отсутствует в папке tools.' 'Bluetooth CAB audit module is missing from tools.')
             }
             Write-Host (L 'Дополнительная проверка: закреплённый Bluetooth CAB для PID_0026. Загрузка только после согласия, установки нет.' 'Additional check: pinned Bluetooth CAB for PID_0026. Download requires consent; nothing is installed.')
-            $cabAssessment = & $pilot -Language $script:uiLanguage
+            if ($PrepareSignTool) { $cabAssessment = & $pilot -Language $script:uiLanguage -PrepareSignTool }
+            else { $cabAssessment = & $pilot -Language $script:uiLanguage }
             if ($cabAssessment -and ($cabAssessment.CandidateVerdict -ne 'NO_NEWER_VERSION' -or
                 $cabAssessment.CabHash -ne 'PASS' -or $cabAssessment.ArchiveInfLink -ne 'PASS' -or
                 $cabAssessment.InstalledDeviceCheck -ne 'PASS' -or $cabAssessment.CandidateMatch -ne 'Exact')) {
@@ -648,6 +652,7 @@ function Update-IntelGraphics {
 
 try {
     if ($GraphicsInstallerPath -and -not $Graphics) { throw (L 'Параметр -GraphicsInstallerPath используется только с -Graphics.' 'Use -GraphicsInstallerPath only together with -Graphics.') }
+    if ($PrepareSignTool -and -not $VerifyBluetoothCab) { throw (L 'Параметр -PrepareSignTool требует -VerifyBluetoothCab.' 'PrepareSignTool requires VerifyBluetoothCab.') }
     if ($VerifyBluetoothCab -and -not $CheckUpdates) { throw (L 'Параметр -VerifyBluetoothCab требует -CheckUpdates.' 'VerifyBluetoothCab requires CheckUpdates.') }
     if ($CandidateManifest -and -not $CheckUpdates) { throw (L 'Параметр -CandidateManifest требует -CheckUpdates.' 'CandidateManifest requires CheckUpdates.') }
     if ($CheckUpdates) {
