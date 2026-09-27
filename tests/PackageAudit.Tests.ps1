@@ -36,7 +36,7 @@ DriverVer=09/01/2026,24.80.0.1
     $validHash = (Get-FileHash -LiteralPath $validZip -Algorithm SHA256).Hash
     $linked = & $auditor -InfPath $inf -PackageFile $validZip -ExpectedSha256 $validHash -ArchiveEntry 'drivers/sample.inf'
     if ($linked.ArchiveInfLink -ne 'PASS' -or $linked.HashCheck -ne 'PASS' -or $linked.Status -ne 'UNVERIFIED') {
-        throw 'Matching ZIP entry was not verified or missing catalog was trusted.'
+        throw "Matching ZIP entry failed: $($linked | ConvertTo-Json -Compress)"
     }
     Set-Content -LiteralPath $inf -Encoding ASCII -Value 'modified INF'
     $changed = & $auditor -InfPath $inf -PackageFile $validZip -ExpectedSha256 $validHash -ArchiveEntry 'drivers/sample.inf'
