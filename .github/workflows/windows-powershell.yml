@@ -62,6 +62,9 @@ jobs:
       - name: Check optional SignTool helper
         shell: powershell
         run: .\tests\LocalSignTool.Tests.ps1
+      - name: Verify signed CAB audit once
+        shell: powershell
+        run: .\tests\SignToolCab.Integration.ps1
       - name: Check temporary workspace cleanup
         shell: powershell
         run: .\tests\WorkDirectory.Tests.ps1
