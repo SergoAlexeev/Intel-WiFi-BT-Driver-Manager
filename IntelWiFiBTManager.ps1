@@ -286,16 +286,16 @@ function Get-GraphicsCandidateMetadata([string]$CataloguePath) {
     try {
         $data = Get-Content -LiteralPath $path -Raw -ErrorAction Stop | ConvertFrom-Json -ErrorAction Stop
         if ($data.schemaVersion -ne 1) { throw 'Unexpected schema version' }
-        $matches = @($data.packages | Where-Object { $_.id -eq 'intel-graphics-core-7-10-31.0.101.2145' })
-        if ($matches.Count -ne 1 -or
-            $matches[0].version -ne [string]$graphicsVersion -or
-            $matches[0].sha512 -ne $graphicsSha512 -or
-            $matches[0].downloadUrl -ne $graphicsUri -or
-            $matches[0].installMode -ne 'graphics-preview' -or
-            $matches[0].sourcePage -notmatch '^https://[^/]+[.]intel[.]com/') {
+        $candidateRows = @($data.packages | Where-Object { $_.id -eq 'intel-graphics-core-7-10-31.0.101.2145' })
+        if ($candidateRows.Count -ne 1 -or
+            $candidateRows[0].version -ne [string]$graphicsVersion -or
+            $candidateRows[0].sha512 -ne $graphicsSha512 -or
+            $candidateRows[0].downloadUrl -ne $graphicsUri -or
+            $candidateRows[0].installMode -ne 'graphics-preview' -or
+            $candidateRows[0].sourcePage -notmatch '^https://[^/]+[.]intel[.]com/') {
             throw 'Catalogue entry differs from the pinned installer'
         }
-        return [PSCustomObject]@{ Source = $matches[0].sourcePage; ReviewedOn = $matches[0].reviewedOn; Detail = (L 'Локальная запись сверена с закреплёнными версией, адресом и SHA-512.' 'Local entry matches the pinned version, URL and SHA-512.'); Catalogue = $true }
+        return [PSCustomObject]@{ Source = $candidateRows[0].sourcePage; ReviewedOn = $candidateRows[0].reviewedOn; Detail = (L 'Локальная запись сверена с закреплёнными версией, адресом и SHA-512.' 'Local entry matches the pinned version, URL and SHA-512.'); Catalogue = $true }
     } catch {
         Write-Warning (L "Файл каталога не прошёл проверку: $($_.Exception.Message). Использую встроенный закреплённый пакет." "Catalogue file failed validation: $($_.Exception.Message). Using the embedded pinned package.")
         return [PSCustomObject]@{ Source = $graphicsUri; ReviewedOn = ''; Detail = (L 'Встроенный закреплённый пакет; файл каталога не подтверждён.' 'Embedded pinned package; the catalogue file is unverified.'); Catalogue = $false }
