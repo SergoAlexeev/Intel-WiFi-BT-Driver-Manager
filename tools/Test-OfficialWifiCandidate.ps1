@@ -63,9 +63,13 @@ try {
                 try { $stream.CopyTo($output) } finally { $output.Dispose(); $stream.Dispose() }
                 $report = Join-Path $folder 'models.json'
                 & $generator -Path $target -OutputPath $report
-                $rows = @(Get-Content -LiteralPath $report -Raw | ConvertFrom-Json | Where-Object {
-                    [string]$_.HardwareId -ieq $baseId
-                })
+                $json = Get-Content -LiteralPath $report -Raw
+                $rows = @()
+                if (-not [string]::IsNullOrWhiteSpace($json)) {
+                    $rows = @($json | ConvertFrom-Json | Where-Object {
+                        [string]$_.HardwareId -ieq $baseId
+                    })
+                }
                 if ($rows.Count) {
                     $selected += [PSCustomObject]@{ Entry = $entry.FullName; InfPath = $target; Report = $report; Rows = $rows.Count }
                 }
