@@ -77,6 +77,37 @@ $graphicsUri = 'https://downloadmirror.intel.com/929187/gfx_win_101.2145.exe'
 $wifiCatalogueUri = 'https://raw.githubusercontent.com/FirstEverTech/Universal-Intel-WiFi-BT-Updater/main/data/intel-wifi-driver-latest.md'
 $bluetoothCatalogueUri = 'https://raw.githubusercontent.com/FirstEverTech/Universal-Intel-WiFi-BT-Updater/main/data/intel-bt-driver-latest.md'
 $script:offerGraphicsRestart = $false
+$script:workDirectory = $null
+$script:workRoot = $null
+
+function New-ManagerWorkDirectory([string]$LocalDataBase) {
+    if ($script:workDirectory) { return $script:workDirectory }
+    if (-not $LocalDataBase) { $LocalDataBase = [Environment]::GetFolderPath('LocalApplicationData') }
+    if ([string]::IsNullOrWhiteSpace($LocalDataBase)) { throw (L 'Не удалось определить папку локальных данных для временных файлов.' 'Cannot locate local application data for temporary files.') }
+    $script:workRoot = [IO.Path]::Combine($LocalDataBase, 'IntelWiFiBTManager', 'Work')
+    [IO.Directory]::CreateDirectory($script:workRoot) | Out-Null
+    $script:workDirectory = [IO.Path]::Combine($script:workRoot, [guid]::NewGuid().ToString('N'))
+    [IO.Directory]::CreateDirectory($script:workDirectory) | Out-Null
+    Write-Host (L "Временные файлы этого запуска: $($script:workDirectory)" "Temporary files for this run: $($script:workDirectory)")
+    return $script:workDirectory
+}
+
+function Clear-ManagerWorkDirectory {
+    $path = $script:workDirectory
+    $script:workDirectory = $null
+    if (-not $path) { return }
+    $directory = [IO.DirectoryInfo]::new($path)
+    if ($directory.Parent.FullName -ne $script:workRoot -or $directory.Name -notmatch '^[a-f0-9]{32}$') {
+        Write-Warning (L 'Временная папка не соответствует ожидаемому пути; автоматическая очистка пропущена.' 'Temporary folder path was unexpected; automatic cleanup was skipped.')
+        return
+    }
+    try {
+        if (Test-Path -LiteralPath $path) { Remove-Item -LiteralPath $path -Recurse -Force -ErrorAction Stop }
+        Write-Host (L 'Временные файлы этого запуска удалены; журнал сохранён.' 'Temporary files for this run were removed; the log was kept.')
+    } catch {
+        Write-Warning (L "Не удалось удалить временную папку $path : $($_.Exception.Message)" "Could not remove temporary folder $path : $($_.Exception.Message)")
+    }
+}
 
 function Test-GraphicsPackageMatch($Processor, $Device, $Os) {
     # The Intel release notes group Core 7th-10th Gen HD/UHD/Iris Plus graphics
@@ -129,6 +160,7 @@ function Invoke-GraphicsRestartPrompt {
         return $false
     }
     Write-Host (L 'Перезагрузка подтверждена. Закрываю журнал и передаю команду Windows.' 'Restart confirmed. Closing the log and asking Windows to restart.')
+    Clear-ManagerWorkDirectory
     Close-ManagerLog
     Restart-Computer -ErrorAction Stop
     return $true
@@ -136,6 +168,7 @@ function Invoke-GraphicsRestartPrompt {
 
 function Exit-Manager([int]$Code) {
     Write-Host (L "Код завершения: $Code; журнал: $LogPath" "Exit code: $Code; log: $LogPath")
+    Clear-ManagerWorkDirectory
     Close-ManagerLog
     exit $Code
 }
@@ -416,12 +449,12 @@ function Update-IntelGraphics {
     if ([string]::IsNullOrWhiteSpace($installerPath)) {
         $localData = [Environment]::GetFolderPath('LocalApplicationData')
         if ([string]::IsNullOrWhiteSpace($localData)) { throw (L 'Не удалось определить локальную папку данных пользователя.' 'Cannot locate the local application data folder.') }
-        $graphicsCache = [IO.Path]::Combine($localData, 'IntelWiFiBTManager', 'Graphics')
+        $graphicsCache = New-ManagerWorkDirectory
         $installerPath = [IO.Path]::Combine($graphicsCache, 'gfx_win_101.2145.exe')
         Write-Host (L "Проверяю, есть ли ранее загруженный пакет: $installerPath" "Checking for a previously downloaded package: $installerPath")
         if (-not [IO.File]::Exists($installerPath) -or
             (Get-FileHash -LiteralPath $installerPath -Algorithm SHA512).Hash -ne $graphicsSha512) {
-            if ((Read-Host (L "Скачать Intel Graphics $graphicsVersion с downloadmirror.intel.com (около 278 МБ) в локальный кэш? (Y/N)" "Download Intel Graphics $graphicsVersion from downloadmirror.intel.com (about 278 MB) into the local cache? (Y/N)")) -notmatch '^[Yy]$') {
+            if ((Read-Host (L "Скачать Intel Graphics $graphicsVersion с downloadmirror.intel.com (около 278 МБ) во временную папку этого запуска? (Y/N)" "Download Intel Graphics $graphicsVersion from downloadmirror.intel.com (about 278 MB) into this run's temporary folder? (Y/N)")) -notmatch '^[Yy]$') {
                 Write-Host (L 'Загрузка отменена. Изменений нет.' 'Download declined. Nothing was changed.')
                 return
             }
@@ -439,7 +472,7 @@ function Update-IntelGraphics {
                     throw (L 'Загрузка не имеет действительной подписи Intel Corporation.' 'The download does not have a valid Intel Corporation signature.')
                 }
                 Move-Item -LiteralPath $staging -Destination $installerPath -Force -ErrorAction Stop
-                Write-Host (L "Проверенный пакет сохранён: $installerPath" "Verified package saved: $installerPath")
+                Write-Host (L "Проверенный пакет сохранён до завершения работы: $installerPath" "Verified package retained until this run finishes: $installerPath")
             } finally {
                 Remove-Item -LiteralPath $staging -Force -ErrorAction SilentlyContinue
             }
@@ -554,7 +587,7 @@ try {
     if ([string]::IsNullOrWhiteSpace($localData)) {
         throw (L 'Не удалось определить локальную папку данных пользователя.' 'Cannot locate the local application data folder.')
     }
-    $cachePath = [IO.Path]::Combine($localData, 'IntelWiFiBTManager', 'Updater')
+    $cachePath = New-ManagerWorkDirectory
     $scriptPath = [IO.Path]::Combine($cachePath, "$updaterName.ps1")
     $needsDownload = $true
     if ([IO.File]::Exists($scriptPath)) {
@@ -570,14 +603,14 @@ try {
 
     if ($needsDownload) {
         Write-Host (L 'Этап 3/4. Локальная копия отсутствует или отличается от версии в PSGallery.' 'Step 3/4. The cached copy is missing or differs from the PSGallery version.')
-        if (-not $Silent -and (Read-Host (L "Скачать базовую утилиту $($available.Version) в $cachePath? (Y/N)" "Download base tool $($available.Version) into $cachePath? (Y/N)")) -notmatch '^[Yy]$') {
+        if (-not $Silent -and (Read-Host (L "Скачать базовую утилиту $($available.Version) во временную папку $cachePath? (Y/N)" "Download base tool $($available.Version) into temporary folder $cachePath? (Y/N)")) -notmatch '^[Yy]$') {
             Stop-Manager (L 'Загрузка отменена.' 'Download declined.')
         }
         [IO.Directory]::CreateDirectory($cachePath) | Out-Null
         $staging = [IO.Path]::Combine($cachePath, [guid]::NewGuid().ToString('N'))
         [IO.Directory]::CreateDirectory($staging) | Out-Null
         try {
-            Write-Host (L "Загружаю базовую утилиту $($available.Version) в локальный кэш." "Downloading base tool $($available.Version) to the local cache.")
+            Write-Host (L "Загружаю базовую утилиту $($available.Version) во временную папку." "Downloading base tool $($available.Version) into the temporary folder.")
             # Save-Script не использует записи об установленных скриптах.
             Save-Script -Name $updaterName -Repository PSGallery -RequiredVersion $available.Version -Path $staging -Force -ErrorAction Stop
             $downloadedPath = [IO.Path]::Combine($staging, "$updaterName.ps1")
