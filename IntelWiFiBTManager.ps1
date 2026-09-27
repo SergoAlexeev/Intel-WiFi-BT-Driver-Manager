@@ -68,6 +68,8 @@ $updaterName = 'universal-intel-wifi-bt-driver-updater'
 $expectedAuthor = 'Marcin Grygiel'
 $expectedProject = 'https://github.com/FirstEverTech/Universal-Intel-WiFi-BT-Updater'
 $graphicsVersion = [version]'31.0.101.2145'
+$graphics6thReferenceVersion = [version]'31.0.101.2115'
+$graphics6thReferenceUri = 'https://www.intel.com/content/www/us/en/download/762755/intel-6th-gen-processor-graphics-windows.html'
 $graphicsSha512 = 'D30369A17F66A787D477FE77787D934A1E74581F27CB19BA1608DF22E76C8DCE68B589DB327456527AE9228D8788663CE005467DF84C722C03F59A2E9297C2D5'
 $graphicsUri = 'https://downloadmirror.intel.com/929187/gfx_win_101.2145.exe'
 $wifiCatalogueUri = 'https://raw.githubusercontent.com/FirstEverTech/Universal-Intel-WiFi-BT-Updater/main/data/intel-wifi-driver-latest.md'
@@ -83,6 +85,16 @@ function Test-GraphicsPackageMatch($Processor, $Device, $Os) {
     if ($Processor.Name -notmatch '(?i)\bi[3579]-(?:[789]\d{3}|10\d{3})[A-Z0-9]*\b') { return $false }
     if ($Device.DeviceClass -ne 'DISPLAY' -or $Device.DeviceID -notmatch '(?i)^PCI\\VEN_8086&DEV_[0-9A-F]{4}') { return $false }
     return ($Device.DeviceName -match '(?i)^Intel(?:\(R\))?\s+(?:HD|UHD|Iris(?:\(R\))?\s+Plus)\s+Graphics')
+}
+
+function Test-Graphics6thGenReference($Processor, $Device, $Os) {
+    # Read-only historical reference. Never use this match to launch an installer.
+    if (-not $Processor -or -not $Device -or -not $Os) { return $false }
+    if ($Os.OSArchitecture -notmatch '64' -or $Os.Caption -notmatch 'Windows (10|11)') { return $false }
+    if ($Processor.Name -notmatch '(?i)\bi[3579]-6\d{3}[A-Z0-9]*\b') { return $false }
+    return ($Device.DeviceClass -eq 'DISPLAY' -and
+        $Device.DeviceID -match '(?i)^PCI\\VEN_8086&DEV_[0-9A-F]{4}' -and
+        $Device.DeviceName -match '(?i)^Intel(?:\(R\))?\s+(?:HD|Iris(?:\(R\))?)\s+Graphics')
 }
 
 function Close-ManagerLog {
@@ -199,15 +211,6 @@ function Get-DriverCatalogueKey($Device, [ValidateSet('WiFi', 'Bluetooth')][stri
 
 function Show-UpdateCheck {
     Write-Host (L 'Проверка обновлений: только чтение версий и таблиц совместимости. Драйверы не загружаются и не устанавливаются.' 'Update check: reading versions and compatibility tables only. No drivers are downloaded or installed.') -ForegroundColor Cyan
-    $catalogues = @{}
-    foreach ($source in @(@('WiFi', $wifiCatalogueUri), @('Bluetooth', $bluetoothCatalogueUri))) {
-        try {
-            $response = Invoke-WebRequest -Uri $source[1] -UseBasicParsing -TimeoutSec 15 -ErrorAction Stop
-            $catalogues[$source[0]] = Convert-DriverCatalogue ([string]$response.Content) $source[0]
-        } catch {
-            Write-Warning (L "Источник $($source[0]) недоступен или его формат изменился: $($source[1]); $($_.Exception.Message)" "The $($source[0]) source is unavailable or its format changed: $($source[1]); $($_.Exception.Message)")
-        }
-    }
     $processor = Get-CimInstance Win32_Processor | Select-Object -First 1
     $os = Get-CimInstance Win32_OperatingSystem
     $devices = @(Get-CimInstance Win32_PnPSignedDriver | Where-Object {
@@ -215,6 +218,17 @@ function Show-UpdateCheck {
         ($_.DeviceID -match '(?i)^(PCI\\VEN_8086|USB\\VID_8087)&') -and
         ($_.DeviceClass -ne 'NET' -or $_.DeviceName -match '(?i)Wi-Fi|Wireless')
     } | Sort-Object DeviceClass, DeviceName)
+    $catalogues = @{}
+    foreach ($source in @(@('WiFi', $wifiCatalogueUri), @('Bluetooth', $bluetoothCatalogueUri))) {
+        $deviceClass = if ($source[0] -eq 'WiFi') { 'NET' } else { 'Bluetooth' }
+        if (-not @($devices | Where-Object { $_.DeviceClass -eq $deviceClass }).Count) { continue }
+        try {
+            $response = Invoke-WebRequest -Uri $source[1] -UseBasicParsing -TimeoutSec 15 -ErrorAction Stop
+            $catalogues[$source[0]] = Convert-DriverCatalogue ([string]$response.Content) $source[0]
+        } catch {
+            Write-Warning (L "Источник $($source[0]) недоступен или его формат изменился: $($source[1]); $($_.Exception.Message)" "The $($source[0]) source is unavailable or its format changed: $($source[1]); $($_.Exception.Message)")
+        }
+    }
     $results = foreach ($device in $devices) {
         $kind = switch ($device.DeviceClass.ToUpperInvariant()) {
             'NET' { 'WiFi' }
@@ -223,10 +237,14 @@ function Show-UpdateCheck {
         }
         $available = $null
         $sourceLabel = ''
+        $note = ''
         if ($kind -eq 'Graphics') {
             if (Test-GraphicsPackageMatch $processor $device $os) {
                 $available = $graphicsVersion
                 $sourceLabel = 'Intel Graphics 31.0.101.2145 (pinned)'
+            } elseif (Test-Graphics6thGenReference $processor $device $os) {
+                $sourceLabel = "Intel 6th Gen historical reference $graphics6thReferenceVersion : $graphics6thReferenceUri"
+                $note = L 'Шестое поколение: пакет Intel 31.0.101.2115 — архивный ориентир, не подтверждённое обновление для этой Windows. Установка не предлагается.' '6th Gen: Intel 31.0.101.2115 is a historical reference, not a verified update for this Windows version. No installation is offered.'
             }
         } elseif ($catalogues.ContainsKey($kind)) {
             $key = Get-DriverCatalogueKey $device $kind
@@ -244,6 +262,14 @@ function Show-UpdateCheck {
                 else { $status = L 'Установлена более новая версия' 'Newer version installed' }
             }
         } catch { }
+        if ($note) {
+            $status = L 'Требуется ручная проверка' 'Manual review needed'
+            try {
+                if ([version]$device.DriverVersion -gt $graphics6thReferenceVersion) {
+                    $note += L ' Установленная версия новее архивного ориентира; актуальность драйвера этим не подтверждается.' ' Installed version is newer than the historical reference; this does not establish that the driver is current.'
+                }
+            } catch { }
+        }
         [PSCustomObject]@{
             Type = $kind
             Device = $device.DeviceName
@@ -251,12 +277,14 @@ function Show-UpdateCheck {
             Available = if ($available) { [string]$available } else { '-' }
             Status = $status
             Source = $sourceLabel
+            Note = $note
         }
     }
     if ($results.Count -eq 0) { Write-Host (L 'Поддерживаемые устройства Intel не обнаружены.' 'No supported Intel devices found.'); return }
     $results | Format-Table Type, Device, Installed, Available, Status -AutoSize -Wrap
     foreach ($result in $results) {
         if ($result.Source) { Write-Host "$($result.Type): $($result.Source)" }
+        if ($result.Note) { Write-Host "$($result.Device): $($result.Note)" -ForegroundColor Yellow }
     }
     Write-Host (L 'Версии Wi-Fi/Bluetooth взяты из таблиц стороннего проекта и служат для предварительного уведомления. Наличие записи не гарантирует совместимость установщика или доступность файла. Для чипсета, BIOS и микрокода эта проверка обновлений пока не реализована.' 'Wi-Fi/Bluetooth versions come from third-party tables and are advisory. A match does not guarantee installer compatibility or file availability. Chipset, BIOS and microcode update checks are not implemented yet.') -ForegroundColor Yellow
 }
