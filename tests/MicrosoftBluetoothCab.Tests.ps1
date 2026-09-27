@@ -19,4 +19,15 @@ function Read-Host { param([string]$Prompt) return 'N' }
 function Invoke-WebRequest { throw 'Network accessed after decline.' }
 $output = & $checker -Language en 6>&1 | Out-String
 if ($output -notmatch 'Download cancelled') { throw 'Declining CAB download did not stop the check.' }
-Write-Host 'Bluetooth CAB pin, bad hash and decline checks passed. No driver downloaded or installed.'
+function Read-Host { param([string]$Prompt) return 'Y' }
+function Invoke-WebRequest {
+    param([string]$Uri, [string]$OutFile, [switch]$UseBasicParsing, [int]$TimeoutSec)
+    Set-Content -LiteralPath $OutFile -Value 'invalid downloaded CAB' -Encoding ASCII
+}
+try {
+    & $checker -Language en | Out-Null
+    throw 'Invalid downloaded CAB was accepted.'
+} catch {
+    if ($_.Exception.Message -notmatch 'SHA-256 mismatch') { throw }
+}
+Write-Host 'Bluetooth CAB pin, invalid local and downloaded files, and decline checks passed. No driver installed.'
