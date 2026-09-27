@@ -1,0 +1,14 @@
+{
+  "schemaVersion": 1,
+  "id": "microsoft-update-bt-24.80.0.2-pid0026",
+  "deviceClass": "BLUETOOTH",
+  "deviceIdPrefix": "USB\\VID_8087&PID_0026",
+  "driverVersion": "24.80.0.2",
+  "fileName": "intel_bt_24.80.0.2_pid0026.cab",
+  "sha256": "BE7997BF8526144830B9C17D89FFCB5951DB78847D37FD63BA167F104040AEBF",
+  "microsoftDeliveryUrl": "http://download.windowsupdate.com/d/msdownload/update/driver/drvs/2026/09/a8be4af6-6f95-46a1-aaa7-41e7e4df0671_74dfa0104d18a5f1252caca5312155b8043bde4a.cab",
+  "referenceUrl": "https://github.com/FirstEverTech/Universal-Intel-WiFi-BT-Updater/releases/download/archive-bt/intel-bt-24.80.0.2_pid0026.txt",
+  "mirrorUrl": "https://github.com/FirstEverTech/Universal-Intel-WiFi-BT-Updater/releases/download/archive-bt/intel_bt_24.80.0.2_pid0026.cab",
+  "reviewedOn": "2026-09-27",
+  "note": "Same SHA-256 obtained from Microsoft delivery host and FirstEverTech release; INF inspected. No Microsoft Catalog record ID or Intel download page confirming this revision established. Review only; no installation."
+}
