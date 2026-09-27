@@ -224,6 +224,16 @@ function Get-DriverCatalogueKey($Device, [ValidateSet('WiFi', 'Bluetooth')][stri
     return $null
 }
 
+function Get-LocalWirelessCatalogue {
+    # Curated snapshot, not a live Intel feed. Review each exact ID/version before changing it.
+    # These two versions were observed on AX201 hardware on 2026-09-27 and cross-checked
+    # with the FirstEverTech tables. Package versions alone do not prove per-device versions.
+    return @{
+        'WiFi:PCI:02F0' = [PSCustomObject]@{ Version = [version]'24.70.0.3'; Checked = '2026-09-27'; Source = 'https://www.intel.com/content/www/us/en/download/19351/intel-wireless-wi-fi-drivers-for-windows-10-and-windows-11.html' }
+        'Bluetooth:USB:0026' = [PSCustomObject]@{ Version = [version]'24.80.0.2'; Checked = '2026-09-27'; Source = 'https://www.intel.com/content/www/us/en/download/18649/intel-wireless-bluetooth-drivers-for-windows-10-and-windows-11.html' }
+    }
+}
+
 function Show-UpdateCheck {
     Write-Host (L 'Проверка обновлений: только чтение версий и таблиц совместимости. Драйверы не загружаются и не устанавливаются.' 'Update check: reading versions and compatibility tables only. No drivers are downloaded or installed.') -ForegroundColor Cyan
     $processor = Get-CimInstance Win32_Processor | Select-Object -First 1
@@ -244,10 +254,15 @@ function Show-UpdateCheck {
         $_.DeviceID -notmatch '(?i)^(PCI\\VEN_8086|USB\\VID_8087)&' -and
         $_.DeviceName -match '(?i)Wi-Fi|Wireless|Bluetooth'
     } | Sort-Object DeviceClass, DeviceName)
+    $localCatalogue = Get-LocalWirelessCatalogue
     $catalogues = @{}
     foreach ($source in @(@('WiFi', $wifiCatalogueUri), @('Bluetooth', $bluetoothCatalogueUri))) {
         $deviceClass = if ($source[0] -eq 'WiFi') { 'NET' } else { 'Bluetooth' }
-        if (-not @($devices | Where-Object { $_.DeviceClass -eq $deviceClass }).Count) { continue }
+        $unmapped = @($devices | Where-Object {
+            $_.DeviceClass -eq $deviceClass -and
+            -not $localCatalogue.ContainsKey("$($source[0]):$(Get-DriverCatalogueKey $_ $source[0])")
+        })
+        if (-not $unmapped.Count) { continue }
         try {
             $response = Invoke-WebRequest -Uri $source[1] -UseBasicParsing -TimeoutSec 15 -ErrorAction Stop
             $catalogues[$source[0]] = Convert-DriverCatalogue ([string]$response.Content) $source[0]
@@ -281,9 +296,19 @@ function Show-UpdateCheck {
                     $note = L 'Графика Arc/Core Ultra: определена ветка Intel для ручной проверки. Конкретный пакет и версия для этого ID пока не подтверждены; установка отключена.' 'Arc/Core Ultra graphics: identified an Intel family for manual review. The package and version for this ID are unverified; installation is disabled.'
                 }
             }
-        } elseif ($catalogues.ContainsKey($kind)) {
+        } else {
             $key = Get-DriverCatalogueKey $device $kind
-            if ($key -and $catalogues[$kind].ContainsKey($key)) {
+            $localKey = "${kind}:$key"
+            if ($key -and $localCatalogue.ContainsKey($localKey)) {
+                $entry = $localCatalogue[$localKey]
+                $sourceLabel = "$($entry.Source) ($($entry.Checked); local snapshot)"
+                if ((Get-Date).Date -le ([datetime]::ParseExact($entry.Checked, 'yyyy-MM-dd', [Globalization.CultureInfo]::InvariantCulture)).AddDays(30)) {
+                    $available = $entry.Version
+                    $note = L 'Версия взята из локального проверенного снимка, а не из живого каталога Intel. Новые релизы после даты снимка здесь не обнаруживаются.' 'Version comes from a reviewed local snapshot, not a live Intel catalogue. Releases after the snapshot date cannot be detected here.'
+                } else {
+                    $note = L 'Локальный снимок старше 30 дней; сравнение версий отключено до повторной проверки каталога.' 'Local snapshot is older than 30 days; version comparison is disabled until the catalogue is reviewed.'
+                }
+            } elseif ($key -and $catalogues.ContainsKey($kind) -and $catalogues[$kind].ContainsKey($key)) {
                 $available = $catalogues[$kind][$key]
                 $sourceLabel = if ($kind -eq 'WiFi') { $wifiCatalogueUri } else { $bluetoothCatalogueUri }
             }
@@ -297,7 +322,7 @@ function Show-UpdateCheck {
                 else { $status = L 'Установлена более новая версия' 'Newer version installed' }
             }
         } catch { }
-        if ($note) {
+        if ($note -and $kind -eq 'Graphics') {
             $status = L 'Требуется ручная проверка' 'Manual review needed'
             if ($sourceLabel -like "*762755*") { try {
                 if ([version]$device.DriverVersion -gt $graphics6thReferenceVersion) {
@@ -327,7 +352,7 @@ function Show-UpdateCheck {
                 Write-Host (L "Следующий шаг для $($result.Device): запустите этот файл без параметров. Базовая утилита проверит совместимость и запросит подтверждение; Wi-Fi и Bluetooth проверяются вместе." "Next for $($result.Device): run this file without parameters. The base utility checks compatibility and asks for confirmation; Wi-Fi and Bluetooth are checked together.")
             }
         } elseif ($result.Status -eq (L 'Версия совпадает' 'Version matches')) {
-            Write-Host (L "$($result.Device): версия совпадает с проверяемым источником; действий сейчас не требуется." "$($result.Device): version matches the checked source; no action needed now.")
+            Write-Host (L "$($result.Device): версия совпадает с проверяемым источником; проверка более новых выпусков зависит от актуальности источника." "$($result.Device): version matches the checked source; detecting newer releases depends on the source freshness.")
         } elseif ($result.Status -eq (L 'Установлена более новая версия' 'Newer version installed')) {
             Write-Host (L "$($result.Device): установленная версия новее значения источника; откат не требуется." "$($result.Device): installed version exceeds the source value; no downgrade is needed.")
         } else {
@@ -339,7 +364,7 @@ function Show-UpdateCheck {
         $otherWireless | Select-Object DeviceClass, DeviceName, DriverVersion | Format-Table -AutoSize -Wrap
         Write-Host (L 'Для этих устройств модуль Intel не подходит; их доступные обновления программа пока не проверяет. Никаких действий по установке не требуется. Если обновление понадобится, сначала проверьте поддержку своей модели и версии Windows у производителя компьютера.' 'The Intel module does not apply to these devices; the manager cannot check their available updates yet. No installation action is needed. If an update becomes necessary, first check support for your model and Windows version with the computer manufacturer.') -ForegroundColor Yellow
     }
-    Write-Host (L 'Версии Wi-Fi/Bluetooth взяты из таблиц стороннего проекта и служат для предварительного уведомления. Наличие записи не гарантирует совместимость установщика или доступность файла. Для чипсета, BIOS и микрокода эта проверка обновлений пока не реализована.' 'Wi-Fi/Bluetooth versions come from third-party tables and are advisory. A match does not guarantee installer compatibility or file availability. Chipset, BIOS and microcode update checks are not implemented yet.') -ForegroundColor Yellow
+    Write-Host (L 'Wi-Fi/Bluetooth: сначала локальный проверенный снимок; для остальных ID — таблицы стороннего проекта. Оба источника справочные: совпадение не гарантирует актуальность, совместимость или доступность пакета. Установка Wi-Fi/Bluetooth пока зависит от базовой утилиты. Чипсет, BIOS и микрокод не проверяются.' 'Wi-Fi/Bluetooth: reviewed local snapshot first; third-party tables for other IDs. Both are advisory: a match does not guarantee freshness, compatibility or availability. Wi-Fi/Bluetooth installation still depends on the base tool. Chipset, BIOS and microcode are not checked.') -ForegroundColor Yellow
 }
 
 function Update-IntelGraphics {
