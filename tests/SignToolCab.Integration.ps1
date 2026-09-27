@@ -27,6 +27,7 @@ try {
     try {
         $tampered = & $tool verify /kp /v /c $cat $inf 2>&1 | Out-String
         $tamperedExit = $LASTEXITCODE
+        $global:LASTEXITCODE = 0
     } finally { $ErrorActionPreference = 'Stop' }
     Write-Host "Modified INF/CAT: exit $tamperedExit; $tampered"
     if ($tamperedExit -eq 0) { throw 'Tampered INF was accepted by SignTool.' }
