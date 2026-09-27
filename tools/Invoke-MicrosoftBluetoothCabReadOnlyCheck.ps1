@@ -100,7 +100,34 @@ try {
     }
     $candidateVerdict = 'NOT_CHECKED'
     $candidateMatch = 'NOT_CHECKED'
-    if ($installed.InfName -match '(?i)^oem[0-9]+\.inf
+    if ($installed.InfName -match '(?i)^oem[0-9]+\.inf$' -and
+        (Test-Path -LiteralPath $installedInfPath -PathType Leaf)) {
+        $installedReport = Join-Path $work 'installed.json'
+        & $generator -Path $installedInfPath -OutputPath $installedReport
+        $checker = Join-Path $PSScriptRoot 'Test-DriverCandidate.ps1'
+        if (-not (Test-Path -LiteralPath $checker -PathType Leaf)) { throw "Missing candidate checker: $checker" }
+        $candidateArgs = @{
+            InstalledReport = $installedReport
+            CandidateReport = $report
+            CandidateInf = $infs[0].FullName
+            HardwareId = $installed.DeviceID
+            Architecture = if ([Environment]::Is64BitOperatingSystem) { 'amd64' } else { 'x86' }
+            OsBuild = [Environment]::OSVersion.Version.Build
+            PackageFile = $cabPath
+            ExpectedSha256 = $pin
+            ArchiveEntry = 'ibtusb.inf'
+            Language = $Language
+            VerifyInstalledDevice = $true
+        }
+        if ($SignToolPath) { $candidateArgs.SignToolPath = $SignToolPath }
+        $decision = & $checker @candidateArgs
+        $candidateVerdict = $decision.Verdict
+        $candidateMatch = $decision.CandidateMatch
+        if ($decision.ArchiveInfLink -ne 'PASS' -or $decision.InfCatalogMembership -eq 'FAIL') {
+            throw "Combined candidate audit failed: $candidateVerdict"
+        }
+    }
+    $version = [version]$installed.DriverVersion
     $candidate = [version]$meta.driverVersion
     $result = if ($version -eq $candidate) { 'SAME_VERSION' }
               elseif ($version -gt $candidate) { 'INSTALLED_NEWER_THAN_REFERENCE' }
