@@ -4,11 +4,21 @@ $tokens = $null
 $parseErrors = $null
 $ast = [System.Management.Automation.Language.Parser]::ParseFile($manager, [ref]$tokens, [ref]$parseErrors)
 if ($parseErrors.Count -gt 0) { throw 'Manager does not parse' }
-foreach ($name in @('Convert-DriverCatalogue', 'Get-DriverCatalogueKey', 'Get-LocalWirelessKey', 'Get-LocalWirelessCatalogue', 'Test-Graphics6thGenReference', 'Get-GraphicsReferenceFamily', 'Show-UpdateCheck')) {
+foreach ($name in @('Convert-DriverCatalogue', 'Get-DriverCatalogueKey', 'Get-LocalWirelessKey', 'Get-LocalWirelessCatalogue', 'Get-GraphicsCandidateMetadata', 'Test-Graphics6thGenReference', 'Get-GraphicsReferenceFamily', 'Show-UpdateCheck')) {
     $definitions = @($ast.FindAll({ param($node) $node -is [System.Management.Automation.Language.FunctionDefinitionAst] -and $node.Name -eq $name }, $true))
     if ($definitions.Count -ne 1) { throw "Expected one definition of $name" }
     . ([scriptblock]::Create($definitions[0].Extent.Text))
 }
+
+$script:graphicsVersion = [version]'31.0.101.2145'
+$script:graphicsSha512 = 'D30369A17F66A787D477FE77787D934A1E74581F27CB19BA1608DF22E76C8DCE68B589DB327456527AE9228D8788663CE005467DF84C722C03F59A2E9297C2D5'
+$script:graphicsUri = 'https://downloadmirror.intel.com/929187/gfx_win_101.2145.exe'
+function L($Ru, $En) { return $En }
+$manifest = Join-Path (Split-Path $PSScriptRoot -Parent) 'data\driver-packages.json'
+$reviewed = Get-GraphicsCandidateMetadata -CataloguePath $manifest
+if (-not $reviewed.Catalogue -or $reviewed.ReviewedOn -ne '2026-09-27' -or $reviewed.Source -notmatch 'intel.com') { throw 'Reviewed graphics candidate metadata failed.' }
+$standalone = Get-GraphicsCandidateMetadata -CataloguePath (Join-Path $PSScriptRoot 'missing-catalogue.json')
+if ($standalone.Catalogue -or $standalone.Detail -notmatch 'Embedded pinned') { throw 'Standalone manager fallback failed.' }
 
 $wifiTable = @'
 | Device ID | Chipset | Models | Generation | Latest Version | Release Date |
