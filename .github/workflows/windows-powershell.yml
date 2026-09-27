@@ -18,7 +18,7 @@ jobs:
           $files = @('.\IntelWiFiBTManager.ps1')
           if (Test-Path '.\tests\RestartPrompt.Tests.ps1') { $files += '.\tests\RestartPrompt.Tests.ps1' }
           if (Test-Path '.\tests\UpdateCheck.Tests.ps1') { $files += '.\tests\UpdateCheck.Tests.ps1' }
-          $files += '.\tools\Get-InfDriverReport.ps1', '.\tests\InfReport.Tests.ps1', '.\tools\Compare-InfDriverReports.ps1', '.\tests\InfCompare.Tests.ps1', '.\tools\Test-DriverPackage.ps1', '.\tests\PackageAudit.Tests.ps1'
+          $files += '.\tools\Get-InfDriverReport.ps1', '.\tests\InfReport.Tests.ps1', '.\tools\Compare-InfDriverReports.ps1', '.\tests\InfCompare.Tests.ps1', '.\tools\Test-DriverPackage.ps1', '.\tests\PackageAudit.Tests.ps1', '.\tests\WorkDirectory.Tests.ps1'
           foreach ($file in $files) {
             $tokens = $null
             $errors = $null
@@ -41,6 +41,9 @@ jobs:
       - name: Audit package files without installation
         shell: powershell
         run: .\tests\PackageAudit.Tests.ps1
+      - name: Check temporary workspace cleanup
+        shell: powershell
+        run: .\tests\WorkDirectory.Tests.ps1
       - name: Check read-only inventory with English messages
         if: hashFiles('tests/RestartPrompt.Tests.ps1') != ''
         shell: powershell
