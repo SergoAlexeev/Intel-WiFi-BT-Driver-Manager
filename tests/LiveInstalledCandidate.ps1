@@ -1,4 +1,4 @@
-<#
+﻿<#
 .SYNOPSIS
     Read-only rehearsal on one installed Intel device. No driver download or install.
 .DESCRIPTION
@@ -20,7 +20,7 @@ foreach ($file in @($manager, $generator)) {
 $device = Get-CimInstance Win32_PnPSignedDriver |
     Where-Object {
         $_.DeviceClass -in @('NET', 'DISPLAY', 'Bluetooth') -and
-        $_.DeviceID -match '(?i)^(PCI\VEN_8086|USB\VID_8087)&' -and
+        $_.DeviceID -match '(?i)^(PCI\\VEN_8086|USB\\VID_8087)&' -and
         $_.InfName -match '(?i)^oem[0-9]+\.inf$'
     } |
     Sort-Object @{ Expression = { if ($_.DeviceClass -eq 'NET') { 0 } elseif ($_.DeviceClass -eq 'DISPLAY') { 1 } else { 2 } } } |
