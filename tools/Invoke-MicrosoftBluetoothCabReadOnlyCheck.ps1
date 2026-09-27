@@ -31,7 +31,8 @@ $workBase = Join-Path ([Environment]::GetFolderPath('LocalApplicationData')) 'In
 $work = Join-Path $workBase ([guid]::NewGuid().ToString('N'))
 [IO.Directory]::CreateDirectory($work) | Out-Null
 try {
-    if (-not $PackageFile) {
+    $cabPath = $PackageFile
+    if (-not $cabPath) {
         $question = if ($Language -eq 'ru') {
             'Скачать около 2,5 МБ CAB с download.windowsupdate.com для проверки без установки? (Y/N)'
         } else {
@@ -41,12 +42,12 @@ try {
             Say 'Загрузка отменена.' 'Download cancelled.'
             return
         }
-        $PackageFile = Join-Path $work 'candidate.cab'
+        $cabPath = Join-Path $work 'candidate.cab'
         Say 'Скачиваю CAB Microsoft по HTTP. До чтения INF обязательно сверю SHA-256; файл не будет установлен.' 'Downloading Microsoft-hosted CAB via HTTP. SHA-256 is checked before reading INF; no installation.'
-        Invoke-WebRequest -Uri $url -OutFile $PackageFile -UseBasicParsing -TimeoutSec 120 -ErrorAction Stop
+        Invoke-WebRequest -Uri $url -OutFile $cabPath -UseBasicParsing -TimeoutSec 120 -ErrorAction Stop
     }
     Say 'Этап 1/3. Проверяю хеш CAB.' 'Step 1/3. Checking CAB SHA-256.'
-    if ((Get-FileHash -LiteralPath $PackageFile -Algorithm SHA256).Hash -ine $pin) {
+    if ((Get-FileHash -LiteralPath $cabPath -Algorithm SHA256).Hash -ine $pin) {
         throw 'Bluetooth CAB SHA-256 mismatch. No CAB content was used.'
     }
     $devices = @(Get-CimInstance Win32_PnPSignedDriver | Where-Object {
@@ -58,7 +59,7 @@ try {
     Say 'Этап 2/3. Распаковываю проверенный CAB во временную папку и читаю INF/CAT.' 'Step 2/3. Extracting the verified CAB to a temporary folder and reading INF/CAT.'
     $extract = Join-Path $work 'extracted'
     [IO.Directory]::CreateDirectory($extract) | Out-Null
-    $output = & expand.exe $PackageFile '-F:*' $extract 2>&1
+    $output = & expand.exe $cabPath '-F:*' $extract 2>&1
     if ($LASTEXITCODE -ne 0) { throw "CAB extraction failed: $output" }
     $infs = @(Get-ChildItem -LiteralPath $extract -Recurse -File -Filter '*.inf')
     $cats = @(Get-ChildItem -LiteralPath $extract -Recurse -File -Filter '*.cat')
