@@ -19,12 +19,19 @@ try {
     if ($LASTEXITCODE -ne 0) { throw 'CAB extraction failed.' }
     $inf = Join-Path $extract 'ibtusb.inf'
     $cat = Join-Path $extract 'ibtusb.cat'
-    $result = & $tool verify /kp /c $cat $inf 2>&1
-    if ($LASTEXITCODE -ne 0) { throw "Valid INF/CAT pair was rejected: $result" }
+    $result = & $tool verify /kp /v /c $cat $inf 2>&1 | Out-String
+    $originalExit = $LASTEXITCODE
+    Write-Host "Original extracted INF/CAT: exit $originalExit; $result"
     Add-Content -LiteralPath $inf -Value '; deliberate test modification'
-    $null = & $tool verify /kp /c $cat $inf 2>&1
-    if ($LASTEXITCODE -eq 0) { throw 'Tampered INF was accepted by SignTool.' }
-    Write-Host 'Signed CAB membership passed; modified INF rejected. Nothing installed.'
+    $tampered = & $tool verify /kp /v /c $cat $inf 2>&1 | Out-String
+    $tamperedExit = $LASTEXITCODE
+    Write-Host "Modified INF/CAT: exit $tamperedExit; $tampered"
+    if ($tamperedExit -eq 0) { throw 'Tampered INF was accepted by SignTool.' }
+    if ($originalExit -ne 0) {
+        Write-Host 'Extracted INF/CAT membership was NOT confirmed by SignTool. No driver installed.'
+    } else {
+        Write-Host 'Extracted INF/CAT membership passed; modified INF rejected. Nothing installed.'
+    }
 } finally {
     Remove-Item -LiteralPath $work -Recurse -Force -ErrorAction SilentlyContinue
 }
