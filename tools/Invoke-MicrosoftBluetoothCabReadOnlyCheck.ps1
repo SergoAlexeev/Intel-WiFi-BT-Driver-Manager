@@ -141,6 +141,12 @@ try {
         Status = $result
         CandidateVerdict = $candidateVerdict
         CandidateMatch = $candidateMatch
+        Comparison = if ($decision) { $decision.Comparison } else { 'NOT_CHECKED' }
+        CandidateOsSection = if ($decision) { $decision.CandidateOsSection } else { 'NOT_CHECKED' }
+        CandidateReportMatchesInf = if ($decision) { $decision.CandidateReportMatchesInf } else { $null }
+        ReportInfMatchesAuditedFile = if ($decision) { $decision.ReportInfMatchesAuditedFile } else { $null }
+        InstalledDeviceCheck = if ($decision) { $decision.InstalledDeviceCheck } else { 'NOT_CHECKED' }
+        PackageStatus = if ($decision) { $decision.PackageStatus } else { 'NOT_CHECKED' }
         InstalledVersion = [string]$version
         CandidateInfVersion = [string]$candidate
         HardwareIdRows = $rows.Count
