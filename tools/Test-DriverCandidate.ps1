@@ -78,7 +78,9 @@ if ($VerifyInstalledDevice) {
     $devices = @(Get-CimInstance Win32_PnPSignedDriver | Where-Object { $_.DeviceID -ieq $HardwareId })
     if ($devices.Count -ne 1) {
         $deviceCheck = 'DEVICE_NOT_FOUND'
-    } elseif ($comparison.InstalledVersion -and $devices[0].DriverVersion -eq $comparison.InstalledVersion) {
+    } elseif (-not $comparison.InstalledVersion) {
+        $deviceCheck = 'UNVERIFIED'
+    } elseif ($devices[0].DriverVersion -eq $comparison.InstalledVersion) {
         $deviceCheck = 'PASS'
     } else {
         $deviceCheck = 'VERSION_MISMATCH'
