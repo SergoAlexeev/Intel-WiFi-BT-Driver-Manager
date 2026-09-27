@@ -1,4 +1,4 @@
-<#
+﻿<#
 .SYNOPSIS
     Connects one INF compatibility comparison with a local package audit.
 .DESCRIPTION
