@@ -31,6 +31,13 @@ if ($PackageFile) {
     if ($expectedHash) { $hash = if ($actualHash -ieq $expectedHash) { 'PASS' } else { 'FAIL' } }
 }
 
+$systemInfSignature = Get-AuthenticodeSignature -FilePath $inf.FullName
+$systemInfCatalog = if ($systemInfSignature.Status -eq 'Valid' -and
+    $systemInfSignature.SignatureType -eq 'Catalog') { 'PASS' } else { 'UNVERIFIED' }
+$systemInfSigner = if ($systemInfCatalog -eq 'PASS' -and $systemInfSignature.SignerCertificate) {
+    $systemInfSignature.SignerCertificate.Subject
+} else { $null }
+
 $catalogNames = @()
 $inVersion = $false
 foreach ($raw in (Get-Content -LiteralPath $inf.FullName -ErrorAction Stop)) {
@@ -77,7 +84,9 @@ $status = if ($hash -eq 'FAIL' -or $catalogSignature -eq 'FAIL' -or $membership 
     HashCheck = $hash
     CatalogSignature = $catalogSignature
     InfCatalogMembership = $membership
+    SystemInfCatalogSignature = $systemInfCatalog
+    SystemInfSigner = $systemInfSigner
     ArchiveInfLink = 'UNVERIFIED'
     Status = $status
-    Note = 'A declared URL is not proof of origin. The archive-to-extracted-INF link is unverified. Verify expected hashes from trusted release records. No driver was installed.'
+    Note = 'A declared URL is not proof of origin. A system catalog signature does not identify the exported CAT. The archive-to-extracted-INF link is unverified. Verify expected hashes from trusted release records. No driver was installed.'
 }
