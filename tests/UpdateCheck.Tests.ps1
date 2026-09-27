@@ -4,7 +4,7 @@ $tokens = $null
 $parseErrors = $null
 $ast = [System.Management.Automation.Language.Parser]::ParseFile($manager, [ref]$tokens, [ref]$parseErrors)
 if ($parseErrors.Count -gt 0) { throw 'Manager does not parse' }
-foreach ($name in @('Convert-DriverCatalogue', 'Get-DriverCatalogueKey', 'Test-Graphics6thGenReference', 'Get-GraphicsReferenceFamily', 'Show-UpdateCheck')) {
+foreach ($name in @('Convert-DriverCatalogue', 'Get-DriverCatalogueKey', 'Test-Graphics6thGenReference', 'Get-GraphicsReferenceFamily', 'Get-OemDriverSupportUri', 'Show-UpdateCheck')) {
     $definitions = @($ast.FindAll({ param($node) $node -is [System.Management.Automation.Language.FunctionDefinitionAst] -and $node.Name -eq $name }, $true))
     if ($definitions.Count -ne 1) { throw "Expected one definition of $name" }
     . ([scriptblock]::Create($definitions[0].Extent.Text))
@@ -55,6 +55,14 @@ $sixthDevice.DeviceID = 'PCI\VEN_10DE&DEV_191B\1'
 if ((Get-GraphicsReferenceFamily $sixthCpu $sixthDevice $sixthOs) -ne 'Unknown') { throw 'Non-Intel display family identification failed' }
 $sixthDevice.DeviceID = 'PCI\VEN_8086&DEV_191B\1'
 $sixthDevice.DeviceName = 'Intel(R) HD Graphics 530'
+$lenovo = [pscustomobject]@{ Manufacturer = 'LENOVO'; Model = '80Q0' }
+if ((Get-OemDriverSupportUri $lenovo) -notmatch '/y700-17isk/80q0/downloads/driver-list$') { throw 'Known Lenovo model page missing' }
+$lenovo.Model = '80QX'
+if (Get-OemDriverSupportUri $lenovo) { throw 'Unexpected Lenovo model matched' }
+$lenovo.Model = '80Q0'
+$lenovo.Manufacturer = 'Unknown'
+if (Get-OemDriverSupportUri $lenovo) { throw 'Unexpected manufacturer matched' }
+$lenovo.Manufacturer = 'LENOVO'
 try { Convert-DriverCatalogue '| DEV_02F0 | AX201 | Model | Wi-Fi 6 | invalid | date |' WiFi | Out-Null; throw 'Invalid table was accepted' }
 catch { if ($_.Exception.Message -eq 'Invalid table was accepted') { throw } }
 
@@ -70,6 +78,7 @@ function L($Ru, $En) { return $En }
 function Test-GraphicsPackageMatch { return $false }
 function Get-CimInstance($ClassName) {
     switch ($ClassName) {
+        'Win32_ComputerSystem' { return $lenovo }
         'Win32_Processor' { return $sixthCpu }
         'Win32_OperatingSystem' { return $sixthOs }
         'Win32_PnPSignedDriver' {
