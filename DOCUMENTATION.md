@@ -31,6 +31,16 @@
 
 Отчёт `Test-DriverPackage.ps1` дополнительно показывает `SystemInfCatalogSignature`: Windows может подтверждать подпись INF через системный каталог. Это самостоятельное наблюдение и не заменяет `InfCatalogMembership`, которое требует проверки экспортированного INF против конкретного экспортированного CAT.
 
+## Совместный отчёт по устройству и пакету
+
+`tools/Test-DriverCandidate.ps1` объединяет два локальных отчёта INF с аудитом конкретного пакета. Он принимает установленный и кандидатный JSON-отчёты, путь проверяемого INF и аппаратный ID устройства. Для оценки секции Windows передайте архитектуру и номер сборки. Например:
+
+```powershell
+powershell.exe -NoProfile -ExecutionPolicy Bypass -File .\tools\Test-DriverCandidate.ps1 -InstalledReport 'C:\Drivers\installed.json' -CandidateReport 'C:\Drivers\candidate.json' -CandidateInf 'C:\Drivers\Candidate\netwtw08.inf' -HardwareId 'PCI\VEN_8086&DEV_02F0&SUBSYS_00748086\1' -Architecture amd64 -OsBuild 26200 -Language ru
+```
+
+Для ZIP добавьте `-PackageFile`, хеш из доверенной записи (`-ExpectedSha256` или `-ExpectedSha512`), `-ArchiveEntry` и, при наличии SDK, `-SignToolPath`. Кандидатный JSON должен ссылаться на тот же локальный INF, который передан через `-CandidateInf`. Вывод `REJECT` означает конкретное несоответствие; `NO_NEWER_VERSION` — версия не новее; `MANUAL_REVIEW` — сведений недостаточно. Даже `CANDIDATE_FOR_REVIEW` означает лишь завершение локальных предварительных проверок и не разрешает установку. Полная комплектность пакета, актуальность онлайн-источника, ранжирование Windows и ограничения производителя пока не проверяются. Инструмент ничего не скачивает и не устанавливает.
+
 ## Временные файлы менеджера
 
 Новые загрузки менеджера помещаются в отдельную папку `%LOCALAPPDATA%\IntelWiFiBTManager\Work\<ID запуска>`. После завершения дочернего процесса и запроса перезагрузки менеджер удаляет только папку своего запуска. Журналы находятся отдельно в `Logs` и сохраняются. Файл, заданный параметром `-GraphicsInstallerPath`, не удаляется. Старые папки `Updater` и `Graphics`, созданные предыдущими версиями, также не удаляются автоматически.
