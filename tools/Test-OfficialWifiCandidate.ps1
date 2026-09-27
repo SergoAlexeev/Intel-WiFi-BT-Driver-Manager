@@ -17,7 +17,8 @@ $metadata = Get-Content -LiteralPath $metadataPath -Raw -ErrorAction Stop | Conv
 $publishedHash = 'E74843C855580659559A6D9DB55E1864121E756026F9B543FB8A792DA2EB92A9'
 if ($metadata.sha256 -ne $publishedHash -or $metadata.driverVersion -ne '24.70.0.3' -or
     $metadata.deviceIdPrefix -ne 'PCI\VEN_8086&DEV_02F0&SUBSYS_00748086' -or
-    $metadata.sourcePage -ne 'https://www.intel.com/content/www/us/en/download/18231/intel-proset-wireless-software-and-wi-fi-drivers-for-it-administrators.html') {
+    $metadata.sourcePage -ne 'https://www.intel.com/content/www/us/en/download/18231/intel-proset-wireless-software-and-wi-fi-drivers-for-it-administrators.html' -or
+    $metadata.downloadUrl -ne 'https://downloadmirror.intel.com/926940/WiFi-24.70.0-Driver64-Win10-Win11.zip') {
     throw 'Pinned Intel ZIP metadata differs from the reviewed package.'
 }
 Say 'Этап 1/4. Сверяю SHA-256 ZIP с хешем на странице Intel.' 'Step 1/4. Comparing ZIP SHA-256 with the hash on the Intel page.'
