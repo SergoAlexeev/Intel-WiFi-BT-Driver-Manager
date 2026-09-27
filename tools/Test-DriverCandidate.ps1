@@ -104,14 +104,14 @@ if ($Language -eq 'ru') {
     Write-Host "Совпадение ID: $($comparison.CandidateMatch); секция Windows: $($comparison.CandidateOsSection)."
     Write-Host "Хеш пакета: $($package.HashCheck); INF в ZIP: $($package.ArchiveInfLink); подпись CAT: $($package.CatalogSignature); связь INF с CAT: $($package.InfCatalogMembership)."
     Write-Host "Отчёт соответствует содержимому INF: $reportMatchesInf; путь INF совпадает: $reportInfMatches; установленное устройство Windows: $deviceCheck."
-    Write-Host "Вывод: $verdict. Это локальная предварительная проверка. Драйвер не скачивался и не устанавливался."
+    Write-Host "Вывод: $verdict. Это локальная предварительная проверка. На этом этапе драйвер не загружается и не устанавливается."
 } else {
     Write-Host "Device: $HardwareId"
     Write-Host "INF versions: installed $($comparison.InstalledVersion); candidate $($comparison.CandidateVersion)."
     Write-Host "ID match: $($comparison.CandidateMatch); Windows section: $($comparison.CandidateOsSection)."
     Write-Host "Package hash: $($package.HashCheck); INF in ZIP: $($package.ArchiveInfLink); CAT signature: $($package.CatalogSignature); INF/CAT membership: $($package.InfCatalogMembership)."
     Write-Host "Report matches INF contents: $reportMatchesInf; INF path matches: $reportInfMatches; Windows installed device: $deviceCheck."
-    Write-Host "Result: $verdict. This is a preliminary local check. No driver was downloaded or installed."
+    Write-Host "Result: $verdict. This is a preliminary local check. No driver is downloaded or installed at this stage."
 }
 [PSCustomObject]@{
     HardwareId = $HardwareId
