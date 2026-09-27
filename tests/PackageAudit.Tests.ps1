@@ -14,7 +14,7 @@ DriverVer=09/01/2026,24.80.0.1
     Set-Content -LiteralPath $archive -Encoding ASCII -Value 'synthetic bytes'
     $sha = (Get-FileHash -LiteralPath $archive -Algorithm SHA256).Hash
     $report = & $auditor -InfPath $inf -PackageFile $archive -ExpectedSha256 $sha -SourceUrl 'https://example.invalid/sample.zip'
-    if ($report.HashCheck -ne 'PASS' -or $report.Status -ne 'UNVERIFIED' -or $report.InfCatalogMembership -ne 'UNVERIFIED') {
+    if ($report.HashCheck -ne 'PASS' -or $report.Status -ne 'UNVERIFIED' -or $report.InfCatalogMembership -ne 'UNVERIFIED' -or $report.SystemInfCatalogSignature -ne 'UNVERIFIED') {
         throw 'Missing catalog was treated as verified.'
     }
     $sha512 = (Get-FileHash -LiteralPath $archive -Algorithm SHA512).Hash
