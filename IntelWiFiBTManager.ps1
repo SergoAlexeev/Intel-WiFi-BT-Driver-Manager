@@ -325,8 +325,8 @@ function Show-LocalCandidateChecks($DetectedDevices, $TargetOs) {
             throw (L 'В списке есть пустой или повторяющийся ID устройства.' 'Candidate list has a missing or duplicate device ID.')
         }
         $seen[$deviceId] = $true
-        $matches = @($DetectedDevices | Where-Object { $_.DeviceID -ieq $deviceId })
-        if ($matches.Count -ne 1) {
+        $deviceMatches = @($DetectedDevices | Where-Object { $_.DeviceID -ieq $deviceId })
+        if ($deviceMatches.Count -ne 1) {
             Write-Warning (L "Кандидат для $deviceId пропущен: устройство Intel с точным ID не найдено." "Candidate for $deviceId skipped: no Intel device with that exact ID was detected.")
             continue
         }
@@ -357,7 +357,7 @@ function Show-LocalCandidateChecks($DetectedDevices, $TargetOs) {
             Write-Warning (L "Для $deviceId нет заранее известного хеша; источник пакета остаётся непроверенным." "$deviceId has no pre-established hash; package provenance remains unverified.")
         }
         $decision = & $checker @arguments
-        Write-Host (L "Проверка $($matches[0].DeviceName): $($decision.Verdict). Установка не выполнялась." "Assessment for $($matches[0].DeviceName): $($decision.Verdict). No installation occurred.")
+        Write-Host (L "Проверка $($deviceMatches[0].DeviceName): $($decision.Verdict). Установка не выполнялась." "Assessment for $($deviceMatches[0].DeviceName): $($decision.Verdict). No installation occurred.")
     }
 }
 
