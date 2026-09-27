@@ -50,9 +50,6 @@ jobs:
       - name: Check declining Intel ZIP download
         shell: powershell
         run: .\tests\OfficialWifiDownload.Tests.ps1
-      - name: Verify AX201 ID inside actual Intel ZIP (temporary verification)
-        shell: powershell
-        run: .\tests\OfficialWifiArchive.Integration.ps1
       - name: Check temporary workspace cleanup
         shell: powershell
         run: .\tests\WorkDirectory.Tests.ps1
