@@ -112,15 +112,6 @@ function Get-GraphicsReferenceFamily($Processor, $Device, $Os) {
     return 'Unknown'
 }
 
-function Get-OemDriverSupportUri($Computer) {
-    # An explicitly checked OEM model page. Never infer a driver version from this link.
-    if ($Computer -and $Computer.Manufacturer -match '(?i)^LENOVO$' -and
-        $Computer.Model -match '(?i)^80Q0$') {
-        return 'https://pcsupport.lenovo.com/us/en/products/laptops-and-netbooks/ideapad-y-series-laptops/y700-17isk/80q0/downloads/driver-list'
-    }
-    return $null
-}
-
 function Close-ManagerLog {
     if ($script:logActive) {
         Stop-Transcript -ErrorAction SilentlyContinue | Out-Null
@@ -238,7 +229,6 @@ function Show-UpdateCheck {
     $processor = Get-CimInstance Win32_Processor | Select-Object -First 1
     $os = Get-CimInstance Win32_OperatingSystem
     $computer = Get-CimInstance Win32_ComputerSystem
-    $oemSupportUri = Get-OemDriverSupportUri $computer
     Write-Host (L "Компьютер: $($computer.Manufacturer) $($computer.Model)." "Computer: $($computer.Manufacturer) $($computer.Model).")
     Write-Host (L "Система: процессор $($processor.Name); $($os.Caption) ($($os.OSArchitecture))." "System: processor $($processor.Name); $($os.Caption) ($($os.OSArchitecture)).")
     Write-Host (L 'Проверяю каждое устройство отдельно: установленная версия, источник сравнения, результат и следующий шаг.' 'Checking each device separately: installed version, comparison source, result and next step.')
@@ -347,11 +337,7 @@ function Show-UpdateCheck {
     if ($otherWireless.Count) {
         Write-Host (L 'Беспроводные устройства других производителей:' 'Wireless devices from other manufacturers:') -ForegroundColor Cyan
         $otherWireless | Select-Object DeviceClass, DeviceName, DriverVersion | Format-Table -AutoSize -Wrap
-        Write-Host (L 'Для этих устройств модуль Intel не подходит. Проверьте драйверы по точной модели ноутбука на странице поддержки его производителя; сравните версию и совместимость с Windows до установки.' 'The Intel module does not apply to these devices. Check drivers for the exact laptop model on its manufacturer support page; compare version and Windows compatibility before installing.') -ForegroundColor Yellow
-    }
-    if ($oemSupportUri) {
-        Write-Host (L "Страница драйверов для модели $($computer.Model): $oemSupportUri" "Driver page for model $($computer.Model): $oemSupportUri")
-        Write-Host (L 'Сверьте точный вариант модели, ID устройства и указанную Lenovo версию Windows. Наличие страницы не означает, что для вашей Windows есть более новый совместимый драйвер.' 'Verify the exact model variant, device ID and Windows version listed by Lenovo. This page does not establish that a newer compatible driver exists for your Windows version.') -ForegroundColor Yellow
+        Write-Host (L 'Для этих устройств модуль Intel не подходит; их доступные обновления программа пока не проверяет. Никаких действий по установке не требуется. Если обновление понадобится, сначала проверьте поддержку своей модели и версии Windows у производителя компьютера.' 'The Intel module does not apply to these devices; the manager cannot check their available updates yet. No installation action is needed. If an update becomes necessary, first check support for your model and Windows version with the computer manufacturer.') -ForegroundColor Yellow
     }
     Write-Host (L 'Версии Wi-Fi/Bluetooth взяты из таблиц стороннего проекта и служат для предварительного уведомления. Наличие записи не гарантирует совместимость установщика или доступность файла. Для чипсета, BIOS и микрокода эта проверка обновлений пока не реализована.' 'Wi-Fi/Bluetooth versions come from third-party tables and are advisory. A match does not guarantee installer compatibility or file availability. Chipset, BIOS and microcode update checks are not implemented yet.') -ForegroundColor Yellow
 }
