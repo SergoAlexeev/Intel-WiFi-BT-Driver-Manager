@@ -77,8 +77,8 @@ if ($ArchiveEntry) {
     if ([IO.Path]::GetExtension($PackageFile) -ine '.zip') {
         throw 'ArchiveEntry is supported only for a ZIP PackageFile.'
     }
-    $entryName = $ArchiveEntry.Replace('\\', '/')
-    if ($entryName.StartsWith('/') -or $entryName -match '(^|/)\\.\\.?(/|$)' -or $entryName -match '^[A-Za-z]:') {
+    $entryName = $ArchiveEntry.Replace('\', '/')
+    if ($entryName.StartsWith('/') -or $entryName -match '(^|/)\.\.?(/|$)' -or $entryName -match '^[A-Za-z]:') {
         throw 'ArchiveEntry must be a relative path inside the ZIP.'
     }
     Add-Type -AssemblyName System.IO.Compression
