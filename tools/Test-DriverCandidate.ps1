@@ -17,7 +17,8 @@ param(
     [string]$ArchiveEntry,
     [ValidatePattern('^https://')][string]$SourceUrl,
     [ValidateScript({ Test-Path -LiteralPath $_ -PathType Leaf })][string]$SignToolPath,
-    [ValidateSet('ru', 'en')][string]$Language = 'ru'
+    [ValidateSet('ru', 'en')][string]$Language = 'ru',
+    [switch]$VerifyInstalledDevice
 )
 $ErrorActionPreference = 'Stop'
 $toolFolder = Split-Path $MyInvocation.MyCommand.Path -Parent
@@ -45,14 +46,27 @@ if ($comparison.CandidateInfPath) {
         $reportInfMatches = ((Resolve-Path -LiteralPath $reported).ProviderPath -ieq $expected)
     }
 }
+$deviceCheck = 'NOT_CHECKED'
+if ($VerifyInstalledDevice) {
+    $devices = @(Get-CimInstance Win32_PnPSignedDriver | Where-Object { $_.DeviceID -ieq $HardwareId })
+    if ($devices.Count -ne 1) {
+        $deviceCheck = 'DEVICE_NOT_FOUND'
+    } elseif ($comparison.InstalledVersion -and $devices[0].DriverVersion -eq $comparison.InstalledVersion) {
+        $deviceCheck = 'PASS'
+    } else {
+        $deviceCheck = 'VERSION_MISMATCH'
+    }
+}
 $verdict = 'MANUAL_REVIEW'
 if ($comparison.Assessment -eq 'NO_ID_MATCH' -or $comparison.Assessment -eq 'OLDER_CANDIDATE' -or
-    $package.Status -eq 'FAIL' -or ($comparison.CandidateInfPath -and -not $reportInfMatches)) {
+    $package.Status -eq 'FAIL' -or $deviceCheck -eq 'VERSION_MISMATCH' -or
+    ($comparison.CandidateInfPath -and -not $reportInfMatches)) {
     $verdict = 'REJECT'
 } elseif ($comparison.Assessment -eq 'SAME_VERSION') {
     $verdict = 'NO_NEWER_VERSION'
 } elseif ($comparison.Assessment -eq 'NEWER_CANDIDATE' -and $reportInfMatches -and
-    $comparison.CandidateMatch -eq 'Exact' -and $package.Status -eq 'LOCAL_CHECKS_PASSED') {
+    $comparison.CandidateMatch -eq 'Exact' -and $package.Status -eq 'LOCAL_CHECKS_PASSED' -and
+    $deviceCheck -eq 'PASS') {
     # Even all local checks cannot establish full driver package completeness,
     # Windows PnP ranking, OEM restrictions, or current online availability.
     $verdict = 'CANDIDATE_FOR_REVIEW'
@@ -62,14 +76,14 @@ if ($Language -eq 'ru') {
     Write-Host "Версии INF: установлена $($comparison.InstalledVersion); кандидат $($comparison.CandidateVersion)."
     Write-Host "Совпадение ID: $($comparison.CandidateMatch); секция Windows: $($comparison.CandidateOsSection)."
     Write-Host "Хеш пакета: $($package.HashCheck); INF в ZIP: $($package.ArchiveInfLink); подпись CAT: $($package.CatalogSignature); связь INF с CAT: $($package.InfCatalogMembership)."
-    Write-Host "INF отчёта соответствует проверенному файлу: $reportInfMatches."
+    Write-Host "INF отчёта соответствует проверенному файлу: $reportInfMatches; установленное устройство Windows: $deviceCheck."
     Write-Host "Вывод: $verdict. Это локальная предварительная проверка. Драйвер не скачивался и не устанавливался."
 } else {
     Write-Host "Device: $HardwareId"
     Write-Host "INF versions: installed $($comparison.InstalledVersion); candidate $($comparison.CandidateVersion)."
     Write-Host "ID match: $($comparison.CandidateMatch); Windows section: $($comparison.CandidateOsSection)."
     Write-Host "Package hash: $($package.HashCheck); INF in ZIP: $($package.ArchiveInfLink); CAT signature: $($package.CatalogSignature); INF/CAT membership: $($package.InfCatalogMembership)."
-    Write-Host "Report INF matches the audited file: $reportInfMatches."
+    Write-Host "Report INF matches the audited file: $reportInfMatches; Windows installed device: $deviceCheck."
     Write-Host "Result: $verdict. This is a preliminary local check. No driver was downloaded or installed."
 }
 [PSCustomObject]@{
@@ -81,6 +95,7 @@ if ($Language -eq 'ru') {
     CandidateMatch = $comparison.CandidateMatch
     CandidateOsSection = $comparison.CandidateOsSection
     ReportInfMatchesAuditedFile = $reportInfMatches
+    InstalledDeviceCheck = $deviceCheck
     PackageStatus = $package.Status
     HashCheck = $package.HashCheck
     ArchiveInfLink = $package.ArchiveInfLink
