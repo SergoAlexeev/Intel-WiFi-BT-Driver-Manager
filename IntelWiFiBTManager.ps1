@@ -355,7 +355,9 @@ function Show-UpdateCheck {
             if (Test-GraphicsPackageMatch $processor $device $os) {
                 $available = $graphicsVersion
                 $sourceLabel = "$($graphicsCandidate.Source) (Intel Graphics $graphicsVersion)"
-                $note = "$($graphicsCandidate.Detail) " + (L "Дата проверки записи: $($graphicsCandidate.ReviewedOn). Наличие более нового выпуска онлайн не проверяется. Совместимость с конкретным ПК окончательно проверит установщик Intel; на ноутбуке учитывайте драйвер производителя." "Entry reviewed: $($graphicsCandidate.ReviewedOn). Newer online releases are not checked. Intel setup makes the final device compatibility decision; consider the laptop OEM driver.")
+                $note = "$($graphicsCandidate.Detail) "
+                if ($graphicsCandidate.Catalogue) { $note += (L "Дата проверки записи: $($graphicsCandidate.ReviewedOn). " "Entry reviewed: $($graphicsCandidate.ReviewedOn). ") }
+                $note += (L 'Наличие более нового выпуска онлайн не проверяется. Совместимость с конкретным ПК окончательно проверит установщик Intel; на ноутбуке учитывайте драйвер производителя.' 'Newer online releases are not checked. Intel setup makes the final device compatibility decision; consider the laptop OEM driver.')
             } elseif (Test-Graphics6thGenReference $processor $device $os) {
                 $sourceLabel = "Intel 6th Gen historical reference $graphics6thReferenceVersion : $graphics6thReferenceUri"
                 $note = L 'Шестое поколение: пакет Intel 31.0.101.2115 — архивный ориентир, не подтверждённое обновление для этой Windows. Установка не предлагается.' '6th Gen: Intel 31.0.101.2115 is a historical reference, not a verified update for this Windows version. No installation is offered.'
@@ -401,7 +403,7 @@ function Show-UpdateCheck {
         if ($kind -eq 'WiFi' -and $localKey -and $available -and $installed -lt $available) {
             $status = L 'Требуется ручная проверка' 'Manual review needed'
         }
-        if ($note -and $kind -eq 'Graphics') {
+        if ($note -and $kind -eq 'Graphics' -and -not $available) {
             $status = L 'Требуется ручная проверка' 'Manual review needed'
             if ($sourceLabel -like "*762755*") { try {
                 if ([version]$device.DriverVersion -gt $graphics6thReferenceVersion) {
