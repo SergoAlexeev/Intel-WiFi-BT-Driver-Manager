@@ -19,5 +19,5 @@ $script:answers = @('', 'other', '1')
 function Read-Host { param([string]$Prompt) $value = $script:answers[0]; $script:answers = @($script:answers | Select-Object -Skip 1); return $value }
 if (Read-ManagerChoice -Title 'Test' -Accept 'Continue' -Decline 'Cancel' -Language en) { throw 'Empty answer must decline.' }
 if (-not (Read-ManagerChoice -Title 'Test' -Accept 'Continue' -Decline 'Cancel' -Language en)) { throw 'Invalid answer must reprompt, then accept 1.' }
-if (($script:lines | Where-Object { $_.Color -eq 'Yellow' -and $_.Text -eq '[REVIEW] ' }).Count -lt 1) { throw 'Invalid choice was not explained.' }
+if ((@($script:lines | Where-Object { $_.Text -like '*Enter 1 or 2.*' })).Count -lt 1) { throw 'Invalid choice was not explained.' }
 [Console]::WriteLine('Console UI labels and safe choices passed. Nothing downloaded or installed.')
