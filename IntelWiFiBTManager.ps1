@@ -277,6 +277,31 @@ function Get-LocalWirelessCatalogue {
     }
 }
 
+function Get-GraphicsCandidateMetadata {
+    # The standalone manager still works when the optional data folder is absent.
+    $path = [IO.Path]::Combine($PSScriptRoot, 'data', 'driver-packages.json')
+    if (-not [IO.File]::Exists($path)) {
+        return [PSCustomObject]@{ Source = $graphicsUri; ReviewedOn = ''; Detail = (L 'Встроенный закреплённый пакет; файл каталога рядом со скриптом не найден.' 'Embedded pinned package; the catalogue file was not found next to the script.'); Catalogue = $false }
+    }
+    try {
+        $data = Get-Content -LiteralPath $path -Raw -ErrorAction Stop | ConvertFrom-Json -ErrorAction Stop
+        if ($data.schemaVersion -ne 1) { throw 'Unexpected schema version' }
+        $matches = @($data.packages | Where-Object { $_.id -eq 'intel-graphics-core-7-10-31.0.101.2145' })
+        if ($matches.Count -ne 1 -or
+            $matches[0].version -ne [string]$graphicsVersion -or
+            $matches[0].sha512 -ne $graphicsSha512 -or
+            $matches[0].downloadUrl -ne $graphicsUri -or
+            $matches[0].installMode -ne 'graphics-preview' -or
+            $matches[0].sourcePage -notmatch '^https://[^/]+[.]intel[.]com/') {
+            throw 'Catalogue entry differs from the pinned installer'
+        }
+        return [PSCustomObject]@{ Source = $matches[0].sourcePage; ReviewedOn = $matches[0].reviewedOn; Detail = (L 'Локальная запись сверена с закреплёнными версией, адресом и SHA-512.' 'Local entry matches the pinned version, URL and SHA-512.'); Catalogue = $true }
+    } catch {
+        Write-Warning (L "Файл каталога не прошёл проверку: $($_.Exception.Message). Использую встроенный закреплённый пакет." "Catalogue file failed validation: $($_.Exception.Message). Using the embedded pinned package.")
+        return [PSCustomObject]@{ Source = $graphicsUri; ReviewedOn = ''; Detail = (L 'Встроенный закреплённый пакет; файл каталога не подтверждён.' 'Embedded pinned package; the catalogue file is unverified.'); Catalogue = $false }
+    }
+}
+
 function Show-UpdateCheck {
     Write-Host (L 'Проверка обновлений: только чтение версий и таблиц совместимости. Драйверы не загружаются и не устанавливаются.' 'Update check: reading versions and compatibility tables only. No drivers are downloaded or installed.') -ForegroundColor Cyan
     $processor = Get-CimInstance Win32_Processor | Select-Object -First 1
@@ -298,6 +323,7 @@ function Show-UpdateCheck {
         $_.DeviceName -match '(?i)Wi-Fi|Wireless|Bluetooth'
     } | Sort-Object DeviceClass, DeviceName)
     $localCatalogue = Get-LocalWirelessCatalogue
+    $graphicsCandidate = Get-GraphicsCandidateMetadata
     $catalogues = @{}
     foreach ($source in @(@('WiFi', $wifiCatalogueUri), @('Bluetooth', $bluetoothCatalogueUri))) {
         $deviceClass = if ($source[0] -eq 'WiFi') { 'NET' } else { 'Bluetooth' }
@@ -328,7 +354,8 @@ function Show-UpdateCheck {
         if ($kind -eq 'Graphics') {
             if (Test-GraphicsPackageMatch $processor $device $os) {
                 $available = $graphicsVersion
-                $sourceLabel = 'Intel Graphics 31.0.101.2145 (pinned)'
+                $sourceLabel = "$($graphicsCandidate.Source) (Intel Graphics $graphicsVersion)"
+                $note = "$($graphicsCandidate.Detail) " + (L "Дата проверки записи: $($graphicsCandidate.ReviewedOn). Наличие более нового выпуска онлайн не проверяется. Совместимость с конкретным ПК окончательно проверит установщик Intel; на ноутбуке учитывайте драйвер производителя." "Entry reviewed: $($graphicsCandidate.ReviewedOn). Newer online releases are not checked. Intel setup makes the final device compatibility decision; consider the laptop OEM driver.")
             } elseif (Test-Graphics6thGenReference $processor $device $os) {
                 $sourceLabel = "Intel 6th Gen historical reference $graphics6thReferenceVersion : $graphics6thReferenceUri"
                 $note = L 'Шестое поколение: пакет Intel 31.0.101.2115 — архивный ориентир, не подтверждённое обновление для этой Windows. Установка не предлагается.' '6th Gen: Intel 31.0.101.2115 is a historical reference, not a verified update for this Windows version. No installation is offered.'
