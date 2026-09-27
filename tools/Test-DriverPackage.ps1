@@ -69,6 +69,7 @@ if ($catalogNames.Count -eq 1 -and $catalogNames[0] -match '^[^\\/:*?"<>|]+\.cat
                 $ErrorActionPreference = 'Continue'
                 $null = & $SignToolPath verify /kp /c $catalogPath $inf.FullName 2>&1
                 $signToolExit = $LASTEXITCODE
+                $global:LASTEXITCODE = 0
             } finally { $ErrorActionPreference = $previousAction }
             $membership = if ($signToolExit -eq 0) { 'PASS' } else { 'FAIL' }
         }
