@@ -70,6 +70,8 @@ $expectedProject = 'https://github.com/FirstEverTech/Universal-Intel-WiFi-BT-Upd
 $graphicsVersion = [version]'31.0.101.2145'
 $graphics6thReferenceVersion = [version]'31.0.101.2115'
 $graphics6thReferenceUri = 'https://www.intel.com/content/www/us/en/download/762755/intel-6th-gen-processor-graphics-windows.html'
+$graphics11to14ReferenceUri = 'https://www.intel.com/content/www/us/en/download/864990/intel-11th-14th-gen-processor-graphics-windows.html'
+$graphicsArcReferenceUri = 'https://www.intel.com/content/www/us/en/download/785597/intel-arc-graphics-windows.html'
 $graphicsSha512 = 'D30369A17F66A787D477FE77787D934A1E74581F27CB19BA1608DF22E76C8DCE68B589DB327456527AE9228D8788663CE005467DF84C722C03F59A2E9297C2D5'
 $graphicsUri = 'https://downloadmirror.intel.com/929187/gfx_win_101.2145.exe'
 $wifiCatalogueUri = 'https://raw.githubusercontent.com/FirstEverTech/Universal-Intel-WiFi-BT-Updater/main/data/intel-wifi-driver-latest.md'
@@ -95,6 +97,19 @@ function Test-Graphics6thGenReference($Processor, $Device, $Os) {
     return ($Device.DeviceClass -eq 'DISPLAY' -and
         $Device.DeviceID -match '(?i)^PCI\\VEN_8086&DEV_[0-9A-F]{4}' -and
         $Device.DeviceName -match '(?i)^Intel(?:\(R\))?\s+(?:HD|Iris(?:\(R\))?)\s+Graphics')
+}
+
+function Get-GraphicsReferenceFamily($Processor, $Device, $Os) {
+    # Advisory family selection only. It must never enable an installer.
+    if (-not $Processor -or -not $Device -or -not $Os -or
+        $Device.DeviceClass -ne 'DISPLAY' -or
+        $Device.DeviceID -notmatch '(?i)^PCI\\VEN_8086&DEV_[0-9A-F]{4}' -or
+        $Os.OSArchitecture -notmatch '64' -or $Os.Caption -notmatch 'Windows (10|11)') { return 'Unknown' }
+    if ($Processor.Name -match '(?i)\bCore\s*(?:\(TM\)\s*)?Ultra\b' -or
+        $Device.DeviceName -match '(?i)^Intel(?:\(R\))?\s+Arc\b') { return 'ArcUltra' }
+    if ($Processor.Name -match '(?i)\bi[3579]-(?:11|12|13|14)\d{3}[A-Z0-9]*\b' -and
+        $Device.DeviceName -match '(?i)^Intel(?:\(R\))?\s+(?:UHD|Iris(?:\(R\))?\s+Xe)\s+Graphics') { return 'Core11to14' }
+    return 'Unknown'
 }
 
 function Close-ManagerLog {
@@ -213,10 +228,19 @@ function Show-UpdateCheck {
     Write-Host (L 'Проверка обновлений: только чтение версий и таблиц совместимости. Драйверы не загружаются и не устанавливаются.' 'Update check: reading versions and compatibility tables only. No drivers are downloaded or installed.') -ForegroundColor Cyan
     $processor = Get-CimInstance Win32_Processor | Select-Object -First 1
     $os = Get-CimInstance Win32_OperatingSystem
-    $devices = @(Get-CimInstance Win32_PnPSignedDriver | Where-Object {
+    Write-Host (L "Система: процессор $($processor.Name); $($os.Caption) ($($os.OSArchitecture))." "System: processor $($processor.Name); $($os.Caption) ($($os.OSArchitecture)).")
+    Write-Host (L 'Проверяю каждое устройство отдельно: установленная версия, источник сравнения, результат и следующий шаг.' 'Checking each device separately: installed version, comparison source, result and next step.')
+    $allDevices = @(Get-CimInstance Win32_PnPSignedDriver)
+    $devices = @($allDevices | Where-Object {
         ($_.DeviceClass -in @('NET', 'Bluetooth', 'DISPLAY')) -and
         ($_.DeviceID -match '(?i)^(PCI\\VEN_8086|USB\\VID_8087)&') -and
         ($_.DeviceClass -ne 'NET' -or $_.DeviceName -match '(?i)Wi-Fi|Wireless')
+    } | Sort-Object DeviceClass, DeviceName)
+    $otherWireless = @($allDevices | Where-Object {
+        $_.DeviceClass -in @('NET', 'Bluetooth') -and
+        $_.DeviceID -match '(?i)^(PCI\\VEN_|USB\\VID_)' -and
+        $_.DeviceID -notmatch '(?i)^(PCI\\VEN_8086|USB\\VID_8087)&' -and
+        $_.DeviceName -match '(?i)Wi-Fi|Wireless|Bluetooth'
     } | Sort-Object DeviceClass, DeviceName)
     $catalogues = @{}
     foreach ($source in @(@('WiFi', $wifiCatalogueUri), @('Bluetooth', $bluetoothCatalogueUri))) {
@@ -245,6 +269,15 @@ function Show-UpdateCheck {
             } elseif (Test-Graphics6thGenReference $processor $device $os) {
                 $sourceLabel = "Intel 6th Gen historical reference $graphics6thReferenceVersion : $graphics6thReferenceUri"
                 $note = L 'Шестое поколение: пакет Intel 31.0.101.2115 — архивный ориентир, не подтверждённое обновление для этой Windows. Установка не предлагается.' '6th Gen: Intel 31.0.101.2115 is a historical reference, not a verified update for this Windows version. No installation is offered.'
+            } else {
+                $family = Get-GraphicsReferenceFamily $processor $device $os
+                if ($family -eq 'Core11to14') {
+                    $sourceLabel = $graphics11to14ReferenceUri
+                    $note = L 'Графика Core 11–14 поколений: определена ветка Intel для ручной проверки. Совместимость и версия пакета для этого ID пока не подтверждены; установка отключена.' 'Core 11th–14th Gen graphics: identified an Intel family for manual review. Package compatibility and version for this ID are unverified; installation is disabled.'
+                } elseif ($family -eq 'ArcUltra') {
+                    $sourceLabel = $graphicsArcReferenceUri
+                    $note = L 'Графика Arc/Core Ultra: определена ветка Intel для ручной проверки. Конкретный пакет и версия для этого ID пока не подтверждены; установка отключена.' 'Arc/Core Ultra graphics: identified an Intel family for manual review. The package and version for this ID are unverified; installation is disabled.'
+                }
             }
         } elseif ($catalogues.ContainsKey($kind)) {
             $key = Get-DriverCatalogueKey $device $kind
@@ -264,11 +297,11 @@ function Show-UpdateCheck {
         } catch { }
         if ($note) {
             $status = L 'Требуется ручная проверка' 'Manual review needed'
-            try {
+            if ($sourceLabel -like "*762755*") { try {
                 if ([version]$device.DriverVersion -gt $graphics6thReferenceVersion) {
                     $note += L ' Установленная версия новее архивного ориентира; актуальность драйвера этим не подтверждается.' ' Installed version is newer than the historical reference; this does not establish that the driver is current.'
                 }
-            } catch { }
+            } catch { } }
         }
         [PSCustomObject]@{
             Type = $kind
@@ -280,11 +313,29 @@ function Show-UpdateCheck {
             Note = $note
         }
     }
-    if ($results.Count -eq 0) { Write-Host (L 'Поддерживаемые устройства Intel не обнаружены.' 'No supported Intel devices found.'); return }
-    $results | Format-Table Type, Device, Installed, Available, Status -AutoSize -Wrap
+    if (@($results).Count -eq 0) { Write-Host (L 'Устройства Intel Wi-Fi, Bluetooth или Graphics не обнаружены.' 'No Intel Wi-Fi, Bluetooth or Graphics devices found.') }
+    else { $results | Format-Table Type, Device, Installed, Available, Status -AutoSize -Wrap }
     foreach ($result in $results) {
         if ($result.Source) { Write-Host "$($result.Type): $($result.Source)" }
         if ($result.Note) { Write-Host "$($result.Device): $($result.Note)" -ForegroundColor Yellow }
+        if ($result.Status -eq (L 'Доступно обновление' 'Update available')) {
+            if ($result.Type -eq 'Graphics') {
+                Write-Host (L "Следующий шаг для $($result.Device): запустите этот файл с параметром -Graphics. Программа запросит согласие на скачивание и установку; заранее сохраните документы. На ноутбуке сначала сравните вариант драйвера производителя устройства." "Next for $($result.Device): run this file with -Graphics. The manager asks permission before download and installation; save your work first. On a laptop, compare the computer manufacturer's driver first.")
+            } else {
+                Write-Host (L "Следующий шаг для $($result.Device): запустите этот файл без параметров. Базовая утилита проверит совместимость и запросит подтверждение; Wi-Fi и Bluetooth проверяются вместе." "Next for $($result.Device): run this file without parameters. The base utility checks compatibility and asks for confirmation; Wi-Fi and Bluetooth are checked together.")
+            }
+        } elseif ($result.Status -eq (L 'Версия совпадает' 'Version matches')) {
+            Write-Host (L "$($result.Device): версия совпадает с проверяемым источником; действий сейчас не требуется." "$($result.Device): version matches the checked source; no action needed now.")
+        } elseif ($result.Status -eq (L 'Установлена более новая версия' 'Newer version installed')) {
+            Write-Host (L "$($result.Device): установленная версия новее значения источника; откат не требуется." "$($result.Device): installed version exceeds the source value; no downgrade is needed.")
+        } else {
+            Write-Host (L "$($result.Device): автоматическое обновление не предлагается. Сверьте точную модель ПК, ID устройства и вашу Windows с документацией производителя ПК и указанным источником Intel." "$($result.Device): automatic update is not offered. Check the exact computer model, device ID and Windows version against the computer manufacturer's guidance and the listed Intel source.") -ForegroundColor Yellow
+        }
+    }
+    if ($otherWireless.Count) {
+        Write-Host (L 'Беспроводные устройства других производителей:' 'Wireless devices from other manufacturers:') -ForegroundColor Cyan
+        $otherWireless | Select-Object DeviceClass, DeviceName, DriverVersion | Format-Table -AutoSize -Wrap
+        Write-Host (L 'Для этих устройств модуль Intel не подходит. Проверьте драйверы по точной модели ноутбука на странице поддержки его производителя; сравните версию и совместимость с Windows до установки.' 'The Intel module does not apply to these devices. Check drivers for the exact laptop model on its manufacturer support page; compare version and Windows compatibility before installing.') -ForegroundColor Yellow
     }
     Write-Host (L 'Версии Wi-Fi/Bluetooth взяты из таблиц стороннего проекта и служат для предварительного уведомления. Наличие записи не гарантирует совместимость установщика или доступность файла. Для чипсета, BIOS и микрокода эта проверка обновлений пока не реализована.' 'Wi-Fi/Bluetooth versions come from third-party tables and are advisory. A match does not guarantee installer compatibility or file availability. Chipset, BIOS and microcode update checks are not implemented yet.') -ForegroundColor Yellow
 }
