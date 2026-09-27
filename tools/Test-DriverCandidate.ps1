@@ -32,6 +32,27 @@ $comparisonParams = @{
 }
 if ($Architecture) { $comparisonParams.Architecture = $Architecture }
 if ($OsBuild) { $comparisonParams.OsBuild = $OsBuild }
+$generator = Join-Path $toolFolder 'Get-InfDriverReport.ps1'
+$workBase = [IO.Path]::Combine([Environment]::GetFolderPath('LocalApplicationData'), 'IntelWiFiBTManager', 'Work')
+[IO.Directory]::CreateDirectory($workBase) | Out-Null
+$workPath = [IO.Path]::Combine($workBase, [guid]::NewGuid().ToString('N'))
+[IO.Directory]::CreateDirectory($workPath) | Out-Null
+$reportMatchesInf = $false
+try {
+    $generatedReport = Join-Path $workPath 'candidate.json'
+    & $generator -Path $CandidateInf -OutputPath $generatedReport
+    # The caller's JSON is advisory: compare all relevant model rows to freshly
+    # parsed bytes of the INF, not just the InfFile field in one selected row.
+    $suppliedRows = @(Get-Content -LiteralPath $CandidateReport -Raw | ConvertFrom-Json)
+    $actualRows = @(Get-Content -LiteralPath $generatedReport -Raw | ConvertFrom-Json)
+    $fields = @('HardwareId', 'DriverVersion', 'DriverDate', 'ModelSection', 'InstallSection', 'DeviceName', 'Provider', 'Class')
+    $suppliedKeys = @($suppliedRows | ForEach-Object { ($fields | ForEach-Object { [string]$_ + '=' + [string]$($_.PSObject.Properties[$_].Value) }) -join [char]31 } | Sort-Object)
+    $actualKeys = @($actualRows | ForEach-Object { ($fields | ForEach-Object { [string]$_ + '=' + [string]$($_.PSObject.Properties[$_].Value) }) -join [char]31 } | Sort-Object)
+    $reportMatchesInf = ($suppliedKeys.Count -gt 0 -and $suppliedKeys.Count -eq $actualKeys.Count -and
+        (($suppliedKeys -join [char]30) -ceq ($actualKeys -join [char]30)))
+} finally {
+    Remove-Item -LiteralPath $workPath -Recurse -Force -ErrorAction Stop
+}
 $comparison = & $compare @comparisonParams
 $auditParams = @{ InfPath = $CandidateInf }
 foreach ($key in @('PackageFile', 'ExpectedSha256', 'ExpectedSha512', 'ArchiveEntry', 'SourceUrl', 'SignToolPath')) {
@@ -59,7 +80,7 @@ if ($VerifyInstalledDevice) {
 }
 $verdict = 'MANUAL_REVIEW'
 if ($comparison.Assessment -eq 'NO_ID_MATCH' -or $comparison.Assessment -eq 'OLDER_CANDIDATE' -or
-    $package.Status -eq 'FAIL' -or $deviceCheck -eq 'VERSION_MISMATCH' -or
+    $package.Status -eq 'FAIL' -or -not $reportMatchesInf -or $deviceCheck -eq 'VERSION_MISMATCH' -or
     ($comparison.CandidateInfPath -and -not $reportInfMatches)) {
     $verdict = 'REJECT'
 } elseif ($comparison.Assessment -eq 'SAME_VERSION') {
@@ -76,14 +97,14 @@ if ($Language -eq 'ru') {
     Write-Host "Версии INF: установлена $($comparison.InstalledVersion); кандидат $($comparison.CandidateVersion)."
     Write-Host "Совпадение ID: $($comparison.CandidateMatch); секция Windows: $($comparison.CandidateOsSection)."
     Write-Host "Хеш пакета: $($package.HashCheck); INF в ZIP: $($package.ArchiveInfLink); подпись CAT: $($package.CatalogSignature); связь INF с CAT: $($package.InfCatalogMembership)."
-    Write-Host "INF отчёта соответствует проверенному файлу: $reportInfMatches; установленное устройство Windows: $deviceCheck."
+    Write-Host "Отчёт соответствует содержимому INF: $reportMatchesInf; путь INF совпадает: $reportInfMatches; установленное устройство Windows: $deviceCheck."
     Write-Host "Вывод: $verdict. Это локальная предварительная проверка. Драйвер не скачивался и не устанавливался."
 } else {
     Write-Host "Device: $HardwareId"
     Write-Host "INF versions: installed $($comparison.InstalledVersion); candidate $($comparison.CandidateVersion)."
     Write-Host "ID match: $($comparison.CandidateMatch); Windows section: $($comparison.CandidateOsSection)."
     Write-Host "Package hash: $($package.HashCheck); INF in ZIP: $($package.ArchiveInfLink); CAT signature: $($package.CatalogSignature); INF/CAT membership: $($package.InfCatalogMembership)."
-    Write-Host "Report INF matches the audited file: $reportInfMatches; Windows installed device: $deviceCheck."
+    Write-Host "Report matches INF contents: $reportMatchesInf; INF path matches: $reportInfMatches; Windows installed device: $deviceCheck."
     Write-Host "Result: $verdict. This is a preliminary local check. No driver was downloaded or installed."
 }
 [PSCustomObject]@{
@@ -95,6 +116,7 @@ if ($Language -eq 'ru') {
     CandidateMatch = $comparison.CandidateMatch
     CandidateOsSection = $comparison.CandidateOsSection
     ReportInfMatchesAuditedFile = $reportInfMatches
+    CandidateReportMatchesInf = $reportMatchesInf
     InstalledDeviceCheck = $deviceCheck
     PackageStatus = $package.Status
     HashCheck = $package.HashCheck
