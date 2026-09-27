@@ -107,7 +107,7 @@ function Get-GraphicsReferenceFamily($Processor, $Device, $Os) {
         $Os.OSArchitecture -notmatch '64' -or $Os.Caption -notmatch 'Windows (10|11)') { return 'Unknown' }
     if ($Processor.Name -match '(?i)\bCore\s*(?:\(TM\)\s*)?Ultra\b' -or
         $Device.DeviceName -match '(?i)^Intel(?:\(R\))?\s+Arc\b') { return 'ArcUltra' }
-    if ($Processor.Name -match '(?i)\bi[3579]-(?:11|12|13|14)\d{3}[A-Z0-9]*\b' -and
+    if ($Processor.Name -match '(?i)\bi[3579]-(?:11\d{2,3}|(?:12|13|14)\d{3})[A-Z0-9]*\b' -and
         $Device.DeviceName -match '(?i)^Intel(?:\(R\))?\s+(?:UHD|Iris(?:\(R\))?\s+Xe)\s+Graphics') { return 'Core11to14' }
     return 'Unknown'
 }
