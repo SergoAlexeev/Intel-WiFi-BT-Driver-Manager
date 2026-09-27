@@ -77,10 +77,10 @@ try {
     if ($rows.Count -lt 1) { throw 'CAB INF has no expected Intel USB VID/PID/REV with pinned driver version.' }
     $auditor = Join-Path $PSScriptRoot 'Test-DriverPackage.ps1'
     if (-not (Test-Path -LiteralPath $auditor -PathType Leaf)) { throw "Missing package auditor: $auditor" }
-    $auditArgs = @{ InfPath = $infs[0].FullName; PackageFile = $cabPath; ExpectedSha256 = $pin }
+    $auditArgs = @{ InfPath = $infs[0].FullName; PackageFile = $cabPath; ExpectedSha256 = $pin; ArchiveEntry = 'ibtusb.inf' }
     if ($SignToolPath) { $auditArgs.SignToolPath = $SignToolPath }
     $audit = & $auditor @auditArgs
-    if ($audit.CatalogSignature -ne 'PASS' -or $audit.InfCatalogMembership -eq 'FAIL') {
+    if ($audit.CatalogSignature -ne 'PASS' -or $audit.ArchiveInfLink -ne 'PASS' -or $audit.InfCatalogMembership -eq 'FAIL') {
         throw "CAB INF/CAT validation failed: catalog $($audit.CatalogSignature), membership $($audit.InfCatalogMembership)."
     }
     $installed = $devices[0]
@@ -106,13 +106,14 @@ try {
     Say 'Этап 3/3. Сравниваю версию и байты INF с установленным драйвером.' 'Step 3/3. Comparing the version and INF bytes with the installed driver.'
     Say "Установлено: $version; CAB INF: $candidate; совпадение INF по байтам: $sameBytes; результат: $result." "Installed: $version; CAB INF: $candidate; installed INF bytes match: $sameBytes; result: $result."
     Say "Каталог Windows для побайтно совпадающего установленного INF: $nativeCatalogForSameBytes (не удостоверяет извлечённый CAT)." "Windows catalog for the identical installed INF: $nativeCatalogForSameBytes (does not verify the extracted CAT)."
-    Say "Подпись CAT: $($audit.CatalogSignature); принадлежность INF этому CAT: $($audit.InfCatalogMembership). Каталожная запись Microsoft и публикация Intel для этого пакета пока не установлены. Никакой драйвер не устанавливался." "CAT signature: $($audit.CatalogSignature); INF/CAT membership: $($audit.InfCatalogMembership). No Microsoft Catalog record or Intel release page for this CAB has been confirmed. No driver was installed."
+    Say "INF из проверенного CAB: $($audit.ArchiveInfLink); подпись CAT: $($audit.CatalogSignature); принадлежность INF этому CAT: $($audit.InfCatalogMembership). Каталожная запись Microsoft и публикация Intel для этого пакета пока не установлены. Никакой драйвер не устанавливался." "INF from hashed CAB: $($audit.ArchiveInfLink); CAT signature: $($audit.CatalogSignature); INF/CAT membership: $($audit.InfCatalogMembership). No Microsoft Catalog record or Intel release page for this CAB has been confirmed. No driver was installed."
     [PSCustomObject]@{
         Status = $result
         InstalledVersion = [string]$version
         CandidateInfVersion = [string]$candidate
         HardwareIdRows = $rows.Count
         CabHash = 'PASS'
+        ArchiveInfLink = $audit.ArchiveInfLink
         CatalogSignature = $audit.CatalogSignature
         InfCatalogMembership = $audit.InfCatalogMembership
         WindowsCatalogForSameBytes = $nativeCatalogForSameBytes
