@@ -51,5 +51,6 @@ $script:answer = 'Y'
 Assert-Equal (Invoke-GraphicsRestartPrompt) $true 'accepted restart'
 Assert-Equal $script:restartCalls 1 'accepted: mocked restart called'
 Assert-Equal $script:closeCalls 1 'accepted: log closed'
+Assert-Equal $script:cleanupCalls 1 'accepted: temporary files cleaned'
 Write-Host 'Restart prompt checks passed. No actual restart was requested.' -ForegroundColor Green
 Write-Host 'Graphics family matching checks passed. No driver was downloaded or installed.' -ForegroundColor Green
