@@ -752,6 +752,8 @@ try {
         }
     }
 
+    Write-Host (L 'Базовая утилита — отдельный скрипт FirstEverTech из PowerShell Gallery. Она нужна только для установки Wi-Fi/Bluetooth, пока собственный модуль установки не готов. Загрузка во временную папку сама по себе не меняет драйверы; после запуска утилита выполняет собственную проверку совместимости.' 'The base utility is a separate FirstEverTech script from PowerShell Gallery. It is used only for Wi-Fi/Bluetooth installation until the native installer module is ready. Downloading it to a temporary folder does not change drivers; after launch, the utility performs its own compatibility checks.')
+    Write-Host (L 'Имя автора, адрес проекта и версия сверяются с метаданными PSGallery и скачанного файла. Эти метаданные не являются цифровой подписью или независимым доказательством происхождения кода. Перед запуском будет отдельное подтверждение; автоматический режим -Silent подтверждений не запрашивает.' 'Author name, project URL and version are compared with PSGallery metadata and the downloaded file. These fields are not a digital signature or independent proof of code origin. A separate launch confirmation follows; -Silent does not prompt.')
     if ($needsDownload) {
         Write-Host (L 'Этап 3/4. Локальная копия отсутствует или отличается от версии в PSGallery.' 'Step 3/4. The cached copy is missing or differs from the PSGallery version.')
         if (-not $Silent -and (Read-Host (L "Скачать базовую утилиту $($available.Version) во временную папку $cachePath? (Y/N)" "Download base tool $($available.Version) into temporary folder $cachePath? (Y/N)")) -notmatch '^[Yy]$') {
@@ -777,7 +779,12 @@ try {
         }
     }
     else {
-        Write-Host (L 'Этап 3/4. Проверенная локальная копия актуальна; повторная загрузка не нужна.' 'Step 3/4. The verified cached copy is current; no download is needed.')
+        Write-Host (L 'Этап 3/4. Локальная копия совпала по метаданным; повторная загрузка не нужна.' 'Step 3/4. The local copy matches metadata; no download is needed.')
+    }
+    if (-not $Silent) {
+        if ((Read-Host (L 'Запустить скрипт FirstEverTech? Его интерактивный режим отдельно спросит согласие перед установкой драйверов. (Y/N)' 'Run the FirstEverTech script? Its interactive mode asks separately before installing drivers. (Y/N)')) -notmatch '^[Yy]$') {
+            Stop-Manager (L 'Запуск базовой утилиты отменён; драйверы не изменены.' 'Base utility launch declined; drivers were not changed.')
+        }
     }
     if ($Silent) {
         Write-Host (L 'Этап 4/4. Запускаю базовую утилиту в автоматическом режиме -auto. Её экраны и сообщения остаются английскими.' 'Step 4/4. Starting the base tool in automatic -auto mode. Its own screens and messages remain in English.') -ForegroundColor Cyan
