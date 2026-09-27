@@ -89,6 +89,8 @@ $script:offerGraphicsRestart = $false
 $script:workDirectory = $null
 $script:workRoot = $null
 $script:managerRoot = $PSScriptRoot
+$uiModule = Join-Path $PSScriptRoot 'tools\ConsoleUi.ps1'
+if (Test-Path -LiteralPath $uiModule -PathType Leaf) { . $uiModule }
 
 function New-ManagerWorkDirectory([string]$LocalDataBase) {
     if ($script:workDirectory) { return $script:workDirectory }
@@ -198,6 +200,9 @@ function Test-PackageIdentity($Package) {
 }
 
 function Show-IntelInventory {
+    if (Get-Command Write-ManagerStage -ErrorAction SilentlyContinue) {
+        Write-ManagerStage -Number 1 -Total 1 -Title (L 'Инвентаризация устройств Intel' 'Intel device inventory') -Detail (L 'Только просмотр. Загрузки и установки нет.' 'Read-only. No downloads or installation.') -Language $script:uiLanguage
+    }
     $computer = Get-CimInstance Win32_ComputerSystem
     $processor = Get-CimInstance Win32_Processor | Select-Object -First 1
     $os = Get-CimInstance Win32_OperatingSystem
@@ -223,6 +228,9 @@ function Show-IntelInventory {
         $devices | Select-Object DeviceClass, DriverVersion, DeviceName | Format-Table -AutoSize
     }
     Write-Host (L 'Этот отчёт не определяет наличие обновлений чипсета, BIOS или микрокода.' 'This inventory does not check for chipset, BIOS, or microcode updates.') -ForegroundColor Yellow
+    if (Get-Command Write-ManagerStatus -ErrorAction SilentlyContinue) {
+        Write-ManagerStatus -Code Skip -Message (L 'Поиск обновлений в режиме инвентаризации не выполнялся.' 'Inventory did not search for updates.') -Language $script:uiLanguage
+    }
 }
 
 function Convert-DriverCatalogue([string]$Content, [ValidateSet('WiFi', 'Bluetooth')][string]$Kind) {
@@ -368,6 +376,9 @@ function Show-LocalCandidateChecks($DetectedDevices, $TargetOs) {
 }
 
 function Show-UpdateCheck {
+    if (Get-Command Write-ManagerStage -ErrorAction SilentlyContinue) {
+        Write-ManagerStage -Number 1 -Total 2 -Title (L 'Обнаружение устройств и источников' 'Devices and sources') -Detail (L 'Проверяю версии; установка отключена.' 'Checking versions; installation is disabled.') -Language $script:uiLanguage
+    }
     if ($VerifyBluetoothCab) {
         Write-Host (L 'Проверка обновлений: дополнительный CAB загружается только после согласия и удаляется после проверки. Установки драйвера нет.' 'Update check: an additional CAB is downloaded only with consent and removed afterward. No driver is installed.') -ForegroundColor Cyan
     } else {
@@ -531,9 +542,18 @@ function Show-UpdateCheck {
             Note = $note
         }
     }
+    if (Get-Command Write-ManagerStage -ErrorAction SilentlyContinue) {
+        Write-ManagerStage -Number 2 -Total 2 -Title (L 'Результаты по устройствам' 'Results by device') -Language $script:uiLanguage
+    }
     if (@($results).Count -eq 0) { Write-Host (L 'Устройства Intel Wi-Fi, Bluetooth или Graphics не обнаружены.' 'No Intel Wi-Fi, Bluetooth or Graphics devices found.') }
     else { $results | Format-Table Type, Device, Installed, Available, Status -AutoSize -Wrap }
     foreach ($result in $results) {
+        if (Get-Command Write-ManagerStatus -ErrorAction SilentlyContinue) {
+            $uiCode = if ($result.Status -eq (L 'Версия совпадает' 'Version matches')) { 'Pass' }
+                elseif ($result.Status -in @((L 'Доступно обновление' 'Update available'), (L 'Требуется ручная проверка' 'Manual review needed'))) { 'Review' }
+                else { 'Skip' }
+            Write-ManagerStatus -Code $uiCode -Message "$($result.Device): $($result.Status)" -Language $script:uiLanguage
+        }
         if ($result.Source) { Write-Host "$($result.Type): $($result.Source)" }
         if ($result.Note) { Write-Host "$($result.Device): $($result.Note)" -ForegroundColor Yellow }
         if ($result.Status -eq (L 'Доступно обновление' 'Update available')) {
