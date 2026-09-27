@@ -80,7 +80,13 @@ ZIP и его SHA-256 получаются из уже установленно�
 
 ## Официальный ZIP Intel Wi-Fi: пробная проверка AX201
 
-Intel публикует пакет для IT-администраторов `WiFi-24.70.0-Driver64-Win10-Win11.zip` и SHA-256 `E74843C855580659559A6D9DB55E1864121E756026F9B543FB8A792DA2EB92A9` на [странице загрузки Intel](https://www.intel.com/content/www/us/en/download/18231/intel-proset-wireless-software-and-wi-fi-drivers-for-it-administrators.html). Отдельная запись в `data/intel-wifi-it-24.70.0.json` закрепляет эти сведения. В пакете для AX201 Intel указывает версию драйвера `24.70.0.3`; на испытанном MSI установлена такая же версия. Прямой URL файла в каталоге не закреплён, поскольку он ещё не подтверждён отдельно.
+Intel публикует пакет для IT-администраторов `WiFi-24.70.0-Driver64-Win10-Win11.zip` и SHA-256 `E74843C855580659559A6D9DB55E1864121E756026F9B543FB8A792DA2EB92A9` на [странице загрузки Intel](https://www.intel.com/content/www/us/en/download/18231/intel-proset-wireless-software-and-wi-fi-drivers-for-it-administrators.html). Отдельная запись в `data/intel-wifi-it-24.70.0.json` закрепляет эти сведения. В пакете для AX201 Intel указывает версию драйвера `24.70.0.3`; на испытанном MSI установлена такая же версия. Прямой адрес `https://downloadmirror.intel.com/926940/WiFi-24.70.0-Driver64-Win10-Win11.zip` проверен получением ZIP и сверкой его SHA-256 с опубликованным Intel значением.
+
+Менеджер может предложить скачивание по проверенному адресу зеркала Intel с подтверждением пользователя. После проверки ZIP удаляется, журнал сохраняется:
+
+```powershell
+powershell.exe -NoProfile -ExecutionPolicy Bypass -File '.\tools\Invoke-OfficialWifiReadOnlyCheck.ps1' -Language ru
+```
 
 Скачанный вручную ZIP можно проверить **без установки**:
 
