@@ -504,6 +504,12 @@ function Show-UpdateCheck {
                 else { $status = L 'Установлена более новая версия' 'Newer version installed' }
             }
         } catch { }
+        if ($kind -in @('WiFi', 'Bluetooth') -and $available -and $installed -and
+            $installed -lt $available -and
+            $sourceLabel -in @($wifiCatalogueUri, $bluetoothCatalogueUri)) {
+            $status = L 'Требуется ручная проверка' 'Manual review needed'
+            $note += L ' Более высокая версия указана в сторонней таблице. Конкретный пакет, точный ID, подпись и применимость к этому ПК ещё не проверены; запуск обновления по одному этому значению не предлагается.' 'A higher version is listed in a third-party table. The exact package, device ID, signature and suitability for this PC have not been checked; this value alone does not trigger an update recommendation.'
+        }
         if ($kind -eq 'WiFi' -and $localKey -and $available -and $installed -lt $available) {
             $status = L 'Требуется ручная проверка' 'Manual review needed'
         }
