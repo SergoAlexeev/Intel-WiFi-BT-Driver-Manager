@@ -4,7 +4,7 @@ $tokens = $null
 $parseErrors = $null
 $ast = [System.Management.Automation.Language.Parser]::ParseFile($manager, [ref]$tokens, [ref]$parseErrors)
 if ($parseErrors.Count -gt 0) { throw 'Manager does not parse' }
-foreach ($name in @('Convert-DriverCatalogue', 'Get-DriverCatalogueKey', 'Test-Graphics6thGenReference', 'Show-UpdateCheck')) {
+foreach ($name in @('Convert-DriverCatalogue', 'Get-DriverCatalogueKey', 'Test-Graphics6thGenReference', 'Get-GraphicsReferenceFamily', 'Show-UpdateCheck')) {
     $definitions = @($ast.FindAll({ param($node) $node -is [System.Management.Automation.Language.FunctionDefinitionAst] -and $node.Name -eq $name }, $true))
     if ($definitions.Count -ne 1) { throw "Expected one definition of $name" }
     . ([scriptblock]::Create($definitions[0].Extent.Text))
@@ -45,6 +45,16 @@ if (Test-Graphics6thGenReference $sixthCpu $sixthDevice $sixthOs) { throw 'Non-I
 $sixthDevice.DeviceID = 'PCI\VEN_8086&DEV_191B\1'
 $sixthCpu.Name = 'Intel(R) Core(TM) i7-10710U CPU'
 if (Test-Graphics6thGenReference $sixthCpu $sixthDevice $sixthOs) { throw '10th Gen was identified as 6th Gen' }
+$sixthCpu.Name = 'Intel(R) Core(TM) i7-1165G7 CPU'
+$sixthDevice.DeviceName = 'Intel(R) Iris(R) Xe Graphics'
+if ((Get-GraphicsReferenceFamily $sixthCpu $sixthDevice $sixthOs) -ne 'Core11to14') { throw '11th Gen family identification failed' }
+$sixthCpu.Name = 'Intel(R) Core(TM) Ultra 7 155H'
+$sixthDevice.DeviceName = 'Intel(R) Arc Graphics'
+if ((Get-GraphicsReferenceFamily $sixthCpu $sixthDevice $sixthOs) -ne 'ArcUltra') { throw 'Core Ultra family identification failed' }
+$sixthDevice.DeviceID = 'PCI\VEN_10DE&DEV_191B\1'
+if ((Get-GraphicsReferenceFamily $sixthCpu $sixthDevice $sixthOs) -ne 'Unknown') { throw 'Non-Intel display family identification failed' }
+$sixthDevice.DeviceID = 'PCI\VEN_8086&DEV_191B\1'
+$sixthDevice.DeviceName = 'Intel(R) HD Graphics 530'
 try { Convert-DriverCatalogue '| DEV_02F0 | AX201 | Model | Wi-Fi 6 | invalid | date |' WiFi | Out-Null; throw 'Invalid table was accepted' }
 catch { if ($_.Exception.Message -eq 'Invalid table was accepted') { throw } }
 
@@ -52,6 +62,8 @@ catch { if ($_.Exception.Message -eq 'Invalid table was accepted') { throw } }
 $sixthCpu.Name = 'Intel(R) Core(TM) i7-6700HQ CPU'
 $script:graphics6thReferenceVersion = [version]'31.0.101.2115'
 $script:graphics6thReferenceUri = 'https://www.intel.com/content/www/us/en/download/762755/intel-6th-gen-processor-graphics-windows.html'
+$script:graphics11to14ReferenceUri = 'https://www.intel.com/content/www/us/en/download/864990/intel-11th-14th-gen-processor-graphics-windows.html'
+$script:graphicsArcReferenceUri = 'https://www.intel.com/content/www/us/en/download/785597/intel-arc-graphics-windows.html'
 $script:wifiCatalogueUri = 'https://example.invalid/wifi'
 $script:bluetoothCatalogueUri = 'https://example.invalid/bt'
 function L($Ru, $En) { return $En }
