@@ -116,3 +116,16 @@ powershell.exe -NoProfile -ExecutionPolicy Bypass -File .\tools\Invoke-Microsoft
 ```
 
 Публикация пакета в каталоге обновлений Microsoft по конкретному идентификатору и отдельная страница Intel для этой ревизии пока не найдены. Действительная подпись CAT сама по себе не доказывает принадлежность извлечённого INF этому каталогу: при отсутствии SignTool из Windows SDK это поле остаётся `UNVERIFIED`. При наличии SignTool можно передать `-SignToolPath`, чтобы проверить пару INF/CAT напрямую; `FAIL` останавливает проверку. Этот CAB не добавлен в автоматическую установку и не служит общим каталогом Bluetooth для других устройств. На первом испытанном AX201 проверка вернула `SAME_VERSION`: SHA-256 CAB и подпись CAT прошли, в INF обнаружены три записи ID, версия `24.80.0.2`, а извлечённый INF побайтно совпал с установленным `oem185.inf`. Проверка принадлежности именно этого INF извлечённому CAT остаётся `UNVERIFIED`; драйвер не устанавливался.
+
+### Дополнительная проверка пары INF/CAT
+
+Штатные средства Windows подтверждают подпись установленного INF и позволяют побайтно сопоставить его с INF из CAB. Это подтверждение выводится отдельно как `WindowsCatalogForSameBytes`; оно **не** устанавливает принадлежность INF именно извлечённому `ibtusb.cat`. Для проверки конкретной пары используется SignTool с `verify /kp /c`. В Windows SDK он может отсутствовать на обычном ПК.
+
+Для разработчика предусмотрен отдельный, необязательный `tools/Install-LocalSignTool.ps1`: после согласия он скачивает закреплённый пакет Microsoft.Windows.SDK.BuildTools 10.0.28000.2705 из NuGet (около 21 МБ), сверяет SHA-512 и подпись Microsoft на `signtool.exe`, затем извлекает x64 инструменты в `%LOCALAPPDATA%\IntelWiFiBTManager\Tools\SignTool`. Полный Windows SDK не устанавливается. Этот вспомогательный инструмент не входит в обычный запуск менеджера и не нужен пользователю для простого просмотра версий.
+
+```powershell
+$tool = powershell.exe -NoProfile -ExecutionPolicy Bypass -File .\tools\Install-LocalSignTool.ps1 -Language ru | Select-Object -Last 1
+powershell.exe -NoProfile -ExecutionPolicy Bypass -File .\tools\Invoke-MicrosoftBluetoothCabReadOnlyCheck.ps1 -Language ru -SignToolPath $tool
+```
+
+Если SignTool вернёт ошибку, проверка остановится; вносить пакет в автоматическую установку по этим результатам нельзя. Установка драйвера этим испытанием не выполняется.
