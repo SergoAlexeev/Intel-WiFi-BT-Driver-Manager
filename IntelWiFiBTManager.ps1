@@ -721,7 +721,11 @@ try {
     # На чистой Windows PowerShell 5.1 PowerShellGet может требовать поставщик NuGet.
     if (-not (Get-PackageProvider -Name NuGet -ErrorAction SilentlyContinue)) {
         Write-Host (L 'Для поиска базовой утилиты в PowerShell Gallery нужен поставщик NuGet для PowerShellGet. Он будет добавлен только для текущего пользователя; это не драйвер и не установщик Windows. Если отказаться, поиск пакета и этот режим работы завершатся.' 'PowerShellGet needs the NuGet provider to find the base utility in PowerShell Gallery. It is added for the current user only; it is not a driver or Windows installer. Declining ends package lookup and this mode.')
-        if (-not $Silent -and (Read-Host (L 'Добавить поставщик NuGet для текущего пользователя? (Y/N)' 'Add the NuGet provider for this user? (Y/N)')) -notmatch '^[Yy] -Name NuGet -MinimumVersion '2.8.5.201' -Scope CurrentUser -Force -ErrorAction Stop | Out-Null
+        if (-not $Silent -and (Read-Host (L 'Добавить поставщик NuGet для текущего пользователя? (Y/N)' 'Add the NuGet provider for this user? (Y/N)')) -notmatch '^[Yy]$') {
+            Stop-Manager (L 'Добавление NuGet отменено.' 'NuGet provider setup declined.')
+        }
+        Write-Host (L 'Этап 2/4. Добавляю поставщик NuGet для PowerShellGet.' 'Step 2/4. Adding the NuGet provider for PowerShellGet.')
+        Install-PackageProvider -Name NuGet -MinimumVersion '2.8.5.201' -Scope CurrentUser -Force -ErrorAction Stop | Out-Null
     }
 
     # Find-Script проверяет метаданные записи PSGallery; это не криптографическая подпись.
