@@ -10,6 +10,15 @@ param(
     [ValidateSet('ru', 'en')][string]$Language = 'ru'
 )
 $ErrorActionPreference = 'Stop'
+function Get-ExactWifiInfRows([string]$ReportPath, [string]$BaseId) {
+    $json = Get-Content -LiteralPath $ReportPath -Raw
+    if ([string]::IsNullOrWhiteSpace($json)) { return }
+    # Windows PowerShell 5.1 may pass the JSON array as one pipeline item.
+    # Explicitly enumerate it before comparing each HardwareId.
+    $allRows = @($json | ConvertFrom-Json | ForEach-Object { $_ })
+    $allRows | Where-Object { [string]$_.HardwareId -ieq $BaseId }
+}
+
 function Say([string]$Ru, [string]$En) { if ($Language -eq 'ru') { Write-Host $Ru } else { Write-Host $En } }
 $root = Split-Path $PSScriptRoot -Parent
 $metadataPath = Join-Path $root 'data\intel-wifi-it-24.70.0.json'
@@ -64,13 +73,7 @@ try {
                 try { $stream.CopyTo($output) } finally { $output.Dispose(); $stream.Dispose() }
                 $report = Join-Path $folder 'models.json'
                 & $generator -Path $target -OutputPath $report
-                $json = Get-Content -LiteralPath $report -Raw
-                $rows = @()
-                if (-not [string]::IsNullOrWhiteSpace($json)) {
-                    $rows = @($json | ConvertFrom-Json | Where-Object {
-                        [string]$_.HardwareId -ieq $baseId
-                    })
-                }
+                $rows = @(Get-ExactWifiInfRows $report $baseId)
                 if ($rows.Count) {
                     $selected += [PSCustomObject]@{ Entry = $entry.FullName; InfPath = $target; Report = $report; Rows = $rows.Count }
                 }
