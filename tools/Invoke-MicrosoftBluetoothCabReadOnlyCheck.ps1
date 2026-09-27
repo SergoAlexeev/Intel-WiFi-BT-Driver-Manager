@@ -12,7 +12,8 @@
 param(
     [ValidateScript({ Test-Path -LiteralPath $_ -PathType Leaf })][string]$PackageFile,
     [ValidateSet('ru', 'en')][string]$Language = 'ru',
-    [ValidateScript({ Test-Path -LiteralPath $_ -PathType Leaf })][string]$SignToolPath
+    [ValidateScript({ Test-Path -LiteralPath $_ -PathType Leaf })][string]$SignToolPath,
+    [switch]$PrepareSignTool
 )
 $ErrorActionPreference = 'Stop'
 function Say([string]$Ru, [string]$En) {
@@ -75,6 +76,19 @@ try {
     $rows = @((Get-Content -LiteralPath $report -Raw | ConvertFrom-Json) | ForEach-Object { $_ } |
         Where-Object { $_.HardwareId -match '^USB\\VID_8087&PID_0026&REV_000[012]$' -and $_.DriverVersion -eq '24.80.0.2' })
     if ($rows.Count -lt 1) { throw 'CAB INF has no expected Intel USB VID/PID/REV with pinned driver version.' }
+    if ($PrepareSignTool -and -not $SignToolPath) {
+        $installer = Join-Path $PSScriptRoot 'Install-LocalSignTool.ps1'
+        if (-not (Test-Path -LiteralPath $installer -PathType Leaf)) {
+            throw "Missing SignTool preparation helper: $installer"
+        }
+        $prepared = & $installer -Language $Language
+        if ($prepared -and (Test-Path -LiteralPath $prepared -PathType Leaf)) {
+            $SignToolPath = [string]$prepared
+            Say 'SignTool готов; проверяю принадлежность INF извлечённому CAT.' 'SignTool is ready; checking extracted INF membership in CAT.'
+        } else {
+            Say 'SignTool не подготовлен; связь извлечённых INF/CAT останется непроверенной.' 'SignTool was not prepared; extracted INF/CAT membership remains unverified.'
+        }
+    }
     $auditor = Join-Path $PSScriptRoot 'Test-DriverPackage.ps1'
     if (-not (Test-Path -LiteralPath $auditor -PathType Leaf)) { throw "Missing package auditor: $auditor" }
     $auditArgs = @{ InfPath = $infs[0].FullName; PackageFile = $cabPath; ExpectedSha256 = $pin; ArchiveEntry = 'ibtusb.inf' }
