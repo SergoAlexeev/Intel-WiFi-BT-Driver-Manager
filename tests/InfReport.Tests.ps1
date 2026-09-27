@@ -20,7 +20,7 @@ DriverVer=07/29/2026,24.70.0.3
 
 [Strings]
 Intel="Intel Corporation"
-AX201="Intel Wi-Fi 6 AX201"
+AX201="Intel Wi-Fi 6" "AX201"
 Other="Other Intel device"
 '@
     Set-Content -LiteralPath (Join-Path $root 'example.inf') -Value $inf -Encoding ASCII
