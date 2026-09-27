@@ -365,7 +365,11 @@ function Show-LocalCandidateChecks($DetectedDevices, $TargetOs) {
 }
 
 function Show-UpdateCheck {
+    if ($VerifyBluetoothCab) {
+        Write-Host (L 'Проверка обновлений: дополнительный CAB загружается только после согласия и удаляется после проверки. Установки драйвера нет.' 'Update check: an additional CAB is downloaded only with consent and removed afterward. No driver is installed.') -ForegroundColor Cyan
+    } else {
     Write-Host (L 'Проверка обновлений: читаю версии и доступные сведения о кандидатах. Менеджер на этом этапе не скачивает и не устанавливает драйверы.' 'Update check: reading versions and available candidate details. The manager does not download or install drivers at this stage.') -ForegroundColor Cyan
+    }
     $processor = Get-CimInstance Win32_Processor | Select-Object -First 1
     $os = Get-CimInstance Win32_OperatingSystem
     $computer = Get-CimInstance Win32_ComputerSystem
