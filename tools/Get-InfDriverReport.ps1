@@ -19,17 +19,25 @@ $ErrorActionPreference = 'Stop'
 function Get-InfReport([string]$InfPath) {
     $sections = @{}
     $current = ''
+    $continuation = ''
     foreach ($rawLine in (Get-Content -LiteralPath $InfPath -ErrorAction Stop)) {
         # INF comments start at a semicolon outside quoted text.
         $line = [string]$rawLine
         $quoted = $false
+        $token = $false
         $end = $line.Length
         for ($i = 0; $i -lt $line.Length; $i++) {
             if ($line[$i] -eq '"') { $quoted = -not $quoted }
-            if ($line[$i] -eq ';' -and -not $quoted) { $end = $i; break }
+            if ($line[$i] -eq '%' -and -not $quoted) { $token = -not $token }
+            if ($line[$i] -eq ';' -and -not $quoted -and -not $token) { $end = $i; break }
         }
         $line = $line.Substring(0, $end).Trim()
         if (-not $line) { continue }
+        if ($line.EndsWith('\') -and -not $quoted) {
+            $continuation += $line.Substring(0, $line.Length - 1).TrimEnd() + ' '
+            continue
+        }
+        if ($continuation) { $line = $continuation + $line; $continuation = '' }
         if ($line -match '^\[([^\]]+)\]$') {
             $current = $Matches[1].Trim()
             if (-not $sections.ContainsKey($current)) { $sections[$current] = New-Object System.Collections.ArrayList }
@@ -37,6 +45,7 @@ function Get-InfReport([string]$InfPath) {
         }
         if ($current) { [void]$sections[$current].Add($line) }
     }
+    if ($continuation) { throw "Unterminated INF line continuation: $InfPath" }
     if (-not $sections.ContainsKey('Version') -or -not $sections.ContainsKey('Manufacturer')) { return }
 
     $version = $null
@@ -77,11 +86,12 @@ function Get-InfReport([string]$InfPath) {
         foreach ($line in $sections[$section]) {
             if ($line -notmatch '^\s*([^=]+?)\s*=\s*([^,]+)\s*,\s*(.+)$') { continue }
             $description = $Matches[1].Trim()
+            $installSection = $Matches[2].Trim()
             $ids = $Matches[3]
             if ($description -match '^%([^%]+)%$' -and $strings.ContainsKey($Matches[1])) { $description = $strings[$Matches[1]] }
             foreach ($id in ($ids.Split(',') | ForEach-Object { $_.Trim().Trim('"') })) {
                 if ($id -notmatch '^(?i:(PCI\\VEN_|USB\\VID_))[A-Z0-9_&]+$') { continue }
-                $key = "$section|$id"
+                $key = "$section|$installSection|$description|$id"
                 if ($seen.ContainsKey($key)) { continue }
                 $seen[$key] = $true
                 [PSCustomObject]@{
@@ -93,6 +103,7 @@ function Get-InfReport([string]$InfPath) {
                     ModelSection = $section
                     DeviceName = $description
                     HardwareId = $id
+                    InstallSection = $installSection
                 }
             }
         }
