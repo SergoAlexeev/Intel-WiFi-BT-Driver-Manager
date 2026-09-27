@@ -34,6 +34,10 @@ if ($signature.Status -ne 'Valid' -or -not $signature.SignerCertificate -or
     throw "Bluetooth EXE signature is not a valid Intel Corporation signature: $($signature.Status)."
 }
 Say 'Шаг 3/3. Сравниваю опубликованную версию AX201 с установленной версией Bluetooth.' 'Step 3/3. Comparing the published AX201 version with the installed Bluetooth driver.'
+$wifi = @(Get-CimInstance Win32_PnPSignedDriver | Where-Object {
+    $_.DeviceClass -eq 'NET' -and $_.DeviceID -like 'PCI\VEN_8086&DEV_02F0&SUBSYS_00748086*'
+})
+if ($wifi.Count -ne 1) { throw 'The reviewed Intel AX201 Wi-Fi device was not found on this PC.' }
 $devices = @(Get-CimInstance Win32_PnPSignedDriver | Where-Object {
     $_.DeviceClass -eq 'BLUETOOTH' -and
     $_.DeviceName -eq 'Intel(R) Wireless Bluetooth(R)' -and
