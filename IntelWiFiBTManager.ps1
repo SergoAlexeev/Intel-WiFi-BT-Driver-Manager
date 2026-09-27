@@ -362,7 +362,7 @@ function Show-LocalCandidateChecks($DetectedDevices, $TargetOs) {
 }
 
 function Show-UpdateCheck {
-    Write-Host (L 'Проверка обновлений: только чтение версий и таблиц совместимости. Драйверы не загружаются и не устанавливаются.' 'Update check: reading versions and compatibility tables only. No drivers are downloaded or installed.') -ForegroundColor Cyan
+    Write-Host (L 'Проверка обновлений: читаю версии и доступные сведения о кандидатах. Менеджер на этом этапе не скачивает и не устанавливает драйверы.' 'Update check: reading versions and available candidate details. The manager does not download or install drivers at this stage.') -ForegroundColor Cyan
     $processor = Get-CimInstance Win32_Processor | Select-Object -First 1
     $os = Get-CimInstance Win32_OperatingSystem
     $computer = Get-CimInstance Win32_ComputerSystem
