@@ -1,0 +1,19 @@
+{
+  "schemaVersion": 1,
+  "packages": [
+    {
+      "id": "intel-graphics-core-7-10-31.0.101.2145",
+      "deviceClass": "DISPLAY",
+      "version": "31.0.101.2145",
+      "family": "Intel Core 7th-10th Gen HD/UHD/Iris Plus graphics; selected by manager hardware and OS checks",
+      "sourcePage": "https://www.intel.com/content/www/us/en/support/products/211968/graphics/processor-graphics/intel-uhd-graphics-family.html",
+      "downloadUrl": "https://downloadmirror.intel.com/929187/gfx_win_101.2145.exe",
+      "fileName": "gfx_win_101.2145.exe",
+      "sha512": "D30369A17F66A787D477FE77787D934A1E74581F27CB19BA1608DF22E76C8DCE68B589DB327456527AE9228D8788663CE005467DF84C722C03F59A2E9297C2D5",
+      "expectedSigner": "Intel Corporation",
+      "reviewedOn": "2026-09-27",
+      "installMode": "graphics-preview",
+      "note": "The Intel installer makes the final compatibility decision; an OEM driver may have customizations."
+    }
+  ]
+}
