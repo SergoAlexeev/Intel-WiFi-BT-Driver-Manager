@@ -1,4 +1,4 @@
-$ErrorActionPreference = 'Stop'
+﻿$ErrorActionPreference = 'Stop'
 . (Join-Path (Split-Path $PSScriptRoot -Parent) 'tools\ConsoleUi.ps1')
 $script:lines = New-Object System.Collections.ArrayList
 function Write-Host {
