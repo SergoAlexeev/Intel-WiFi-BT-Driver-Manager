@@ -38,5 +38,31 @@ try {
     @($new, $other) | ConvertTo-Json | Set-Content -LiteralPath $newPath -Encoding UTF8
     $result = (& $comparer -InstalledReport $oldPath -CandidateReport $newPath -HardwareId 'PCI\VEN_8086&DEV_191B&SUBSYS_380217AA\1' -Architecture amd64 -OsBuild 26200 6>&1 | Out-String)
     if ($result -notmatch 'Multiple matching rows' -or $result -match 'Candidate INF version') { throw "Ambiguous install mappings were accepted: $result" }
+    $btBase = 'USB\VID_8087&PID_0026'
+    $btRows = @('0000', '0001', '0002') | ForEach-Object {
+        [PSCustomObject]@{
+            HardwareId = "$btBase&REV_$_"
+            DriverVersion = '24.80.0.2'
+            DriverDate = '09/01/2026'
+            ModelSection = 'Intel.NTamd64'
+            InstallSection = 'IntelInstall'
+            DeviceName = 'Intel Wireless Bluetooth'
+            Provider = 'Intel'
+            Class = 'Bluetooth'
+            InfFile = 'ibtusb.inf'
+        }
+    }
+    $btRows | ConvertTo-Json | Set-Content -LiteralPath $oldPath -Encoding UTF8
+    $btRows | ConvertTo-Json | Set-Content -LiteralPath $newPath -Encoding UTF8
+    $bt = & $comparer -InstalledReport $oldPath -CandidateReport $newPath -HardwareId "$btBase\instance" -Architecture amd64 -OsBuild 26200 -PassThru
+    if ($bt.Assessment -ne 'SAME_VERSION' -or $bt.CandidateRows -ne 1) {
+        throw 'Equivalent Bluetooth REV rows should compare as one mapping.'
+    }
+    $btRows[2].InstallSection = 'DifferentInstall'
+    $btRows | ConvertTo-Json | Set-Content -LiteralPath $newPath -Encoding UTF8
+    $ambiguousBt = & $comparer -InstalledReport $oldPath -CandidateReport $newPath -HardwareId "$btBase\instance" -Architecture amd64 -OsBuild 26200 -PassThru
+    if ($ambiguousBt.Assessment -ne 'MANUAL_REVIEW') {
+        throw 'Conflicting Bluetooth REV install sections require manual review.'
+    }
     Write-Host 'INF comparison checks passed. No download or installation was requested.'
 } finally { Remove-Item -LiteralPath $root -Recurse -Force -ErrorAction SilentlyContinue }
