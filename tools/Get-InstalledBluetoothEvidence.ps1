@@ -14,7 +14,7 @@ function Say([string]$Ru, [string]$En) {
 $devices = @(Get-CimInstance Win32_PnPSignedDriver | Where-Object {
     $_.DeviceClass -eq 'BLUETOOTH' -and
     $_.DeviceName -eq 'Intel(R) Wireless Bluetooth(R)' -and
-    $_.DeviceID -like 'USB\VID_8087*'
+    $_.DeviceID -like 'USB\VID_8087&PID_0026*'
 })
 if ($devices.Count -ne 1) {
     throw "Expected exactly one Intel Wireless Bluetooth device; found $($devices.Count)."
