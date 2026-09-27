@@ -48,7 +48,7 @@ AX201=Install,PCI\VEN_8086&DEV_02F0&SUBSYS_00748086
     $new.DriverVersion = '24.60.0.1'
     @($new) | ConvertTo-Json | Set-Content -LiteralPath $candidate -Encoding UTF8
     $older = & $checker @base
-    if ($older.Verdict -ne 'REJECT') { throw 'Older candidate was accepted.' }
+    if ($older.Verdict -ne 'REJECT' -or $older.CandidateReportMatchesInf) { throw 'Changed candidate JSON was accepted without matching its INF.' }
     # Mock CIM only inside this test. The audited tool remains read-only.
     function Get-CimInstance {
         param([string]$ClassName)
