@@ -86,7 +86,7 @@ if ($ArchiveEntry) {
     try {
         $zip = New-Object System.IO.Compression.ZipArchive($archiveStream, [IO.Compression.ZipArchiveMode]::Read, $false)
         try {
-            $entries = @($zip.Entries | Where-Object { $_.FullName -ceq $entryName })
+            $entries = @($zip.Entries | Where-Object { $_.FullName.Replace('\', '/') -ceq $entryName })
             if ($entries.Count -ne 1) {
                 $archiveInfLink = 'FAIL'
                 $archiveNote = "Expected exactly one ZIP entry '$entryName'; found $($entries.Count)."
