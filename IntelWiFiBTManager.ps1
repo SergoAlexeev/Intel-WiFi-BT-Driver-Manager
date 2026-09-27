@@ -226,8 +226,9 @@ function Get-DriverCatalogueKey($Device, [ValidateSet('WiFi', 'Bluetooth')][stri
 
 function Get-LocalWirelessCatalogue {
     # Curated snapshot, not a live Intel feed. Review each exact ID/version before changing it.
-    # These two versions were observed on AX201 hardware on 2026-09-27 and cross-checked
-    # with the FirstEverTech tables. Package versions alone do not prove per-device versions.
+    # These versions were observed on AX201 hardware on 2026-09-27 and cross-checked
+    # with the FirstEverTech tables. DEV_02F0 spans different models and requires
+    # SUBSYS for a model-specific assertion. This is a package INF snapshot only.
     return @{
         'WiFi:PCI:02F0' = [PSCustomObject]@{ Version = [version]'24.70.0.3'; Checked = '2026-09-27'; Source = 'https://www.intel.com/content/www/us/en/download/19351/intel-wireless-wi-fi-drivers-for-windows-10-and-windows-11.html' }
         'Bluetooth:USB:0026' = [PSCustomObject]@{ Version = [version]'24.80.0.2'; Checked = '2026-09-27'; Source = 'https://www.intel.com/content/www/us/en/download/18649/intel-wireless-bluetooth-drivers-for-windows-10-and-windows-11.html' }
@@ -277,6 +278,8 @@ function Show-UpdateCheck {
             'DISPLAY' { 'Graphics' }
         }
         $available = $null
+        $installed = $null
+        $localKey = ''
         $sourceLabel = ''
         $note = ''
         if ($kind -eq 'Graphics') {
@@ -308,6 +311,9 @@ function Show-UpdateCheck {
                 } else {
                     $note = L 'Локальный снимок старше 30 дней; сравнение версий отключено до повторной проверки каталога.' 'Local snapshot is older than 30 days; version comparison is disabled until the catalogue is reviewed.'
                 }
+                if ($localKey -eq 'WiFi:PCI:02F0') {
+                    $note += L ' DEV_02F0 встречается у нескольких моделей Intel: для определения конкретной модели нужен также SUBSYS из полного ID устройства. Версия INF относится к экспортированному пакету; совместимость нового пакета этим не подтверждена.' ' DEV_02F0 occurs on multiple Intel models: the full device ID including SUBSYS is needed to identify the model. This INF version belongs to the exported package and does not prove compatibility of a future package.'
+                }
             } elseif ($key -and $catalogues.ContainsKey($kind) -and $catalogues[$kind].ContainsKey($key)) {
                 $available = $catalogues[$kind][$key]
                 $sourceLabel = if ($kind -eq 'WiFi') { $wifiCatalogueUri } else { $bluetoothCatalogueUri }
@@ -322,6 +328,9 @@ function Show-UpdateCheck {
                 else { $status = L 'Установлена более новая версия' 'Newer version installed' }
             }
         } catch { }
+        if ($localKey -eq 'WiFi:PCI:02F0' -and $available -and $installed -lt $available) {
+            $status = L 'Требуется ручная проверка' 'Manual review needed'
+        }
         if ($note -and $kind -eq 'Graphics') {
             $status = L 'Требуется ручная проверка' 'Manual review needed'
             if ($sourceLabel -like "*762755*") { try {
