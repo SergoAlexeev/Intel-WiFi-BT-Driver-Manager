@@ -16,7 +16,7 @@ $script:graphicsUri = 'https://downloadmirror.intel.com/929187/gfx_win_101.2145.
 function L($Ru, $En) { return $En }
 $manifest = Join-Path (Split-Path $PSScriptRoot -Parent) 'data\driver-packages.json'
 $reviewed = Get-GraphicsCandidateMetadata -CataloguePath $manifest
-if (-not $reviewed.Catalogue -or $reviewed.ReviewedOn -ne '2026-09-27' -or $reviewed.Source -notmatch 'intel.com') { throw 'Reviewed graphics candidate metadata failed.' }
+if (-not $reviewed.Catalogue -or $reviewed.ReviewedOn -ne '2026-09-27' -or $reviewed.Source -notmatch 'intel.com') { throw ('Reviewed graphics candidate metadata failed: ' + ($reviewed | ConvertTo-Json -Compress)) }
 $standalone = Get-GraphicsCandidateMetadata -CataloguePath (Join-Path $PSScriptRoot 'missing-catalogue.json')
 if ($standalone.Catalogue -or $standalone.Detail -notmatch 'Embedded pinned') { throw 'Standalone manager fallback failed.' }
 
