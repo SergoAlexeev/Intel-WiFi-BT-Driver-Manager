@@ -78,45 +78,66 @@ if ($catalogNames.Count -eq 1 -and $catalogNames[0] -match '^[^\\/:*?"<>|]+\.cat
 $archiveInfLink = 'UNVERIFIED'
 $archiveNote = 'Archive-to-INF link was not checked.'
 if ($ArchiveEntry) {
-    # ZIP is the only container currently supported. An explicit entry avoids
-    # guessing which INF to trust when an archive contains multiple copies.
+    # Require one explicit archive entry to bind the audited INF to package bytes.
     $archiveType = [IO.Path]::GetExtension($PackageFile).ToLowerInvariant()
-    if ($archiveType -notin @('.zip', '.cab')) {
-        throw 'ArchiveEntry is supported only for ZIP and CAB PackageFile.'
-    }
+    if ($archiveType -notin @('.zip', '.cab')) { throw 'ArchiveEntry requires a ZIP or CAB PackageFile.' }
     $entryName = $ArchiveEntry.Replace('\', '/')
     if ($entryName.StartsWith('/') -or $entryName -match '(^|/)\.\.?(/|$)' -or $entryName -match '^[A-Za-z]:') {
-        throw 'ArchiveEntry must be a relative path inside the ZIP.'
+        throw 'ArchiveEntry must be a safe relative path.'
     }
     if ($archiveType -eq '.cab') {
-        # expand.exe extracts only the named file. A private directory prevents
-        # inherited files from making a missing CAB entry appear to match.
-        if ($entryName -match '/' -or $entryName -notmatch '^[A-Za-z0-9_.-]+\\.inf
-    try {
-        $zip = New-Object System.IO.Compression.ZipArchive($archiveStream, [IO.Compression.ZipArchiveMode]::Read, $false)
+        if ($entryName -match '/' -or $entryName -notmatch '^[A-Za-z0-9_.-]+\.inf$') {
+            throw 'CAB ArchiveEntry must be one plain INF filename.'
+        }
+        $cabWork = Join-Path ([IO.Path]::GetTempPath()) ('cab-inf-check-' + [guid]::NewGuid().ToString('N'))
+        [IO.Directory]::CreateDirectory($cabWork) | Out-Null
         try {
-            $entries = @($zip.Entries | Where-Object { $_.FullName.Replace('\', '/') -ceq $entryName })
-            if ($entries.Count -ne 1) {
+            $previousAction = $ErrorActionPreference
+            try {
+                $ErrorActionPreference = 'Continue'
+                $null = & expand.exe (Resolve-Path -LiteralPath $PackageFile).ProviderPath "-F:$entryName" $cabWork 2>&1
+                $expandExit = $LASTEXITCODE
+                $global:LASTEXITCODE = 0
+            } finally { $ErrorActionPreference = $previousAction }
+            $extracted = @(Get-ChildItem -LiteralPath $cabWork -Recurse -File)
+            if ($expandExit -ne 0 -or $extracted.Count -ne 1 -or $extracted[0].Name -ine $entryName) {
                 $archiveInfLink = 'FAIL'
-                $archiveNote = "Expected exactly one ZIP entry '$entryName'; found $($entries.Count)."
+                $archiveNote = "CAB entry '$entryName' could not be extracted exactly once."
             } else {
-                $entryStream = $entries[0].Open()
-                $sha256 = [Security.Cryptography.SHA256]::Create()
-                try {
-                    $entryHash = [BitConverter]::ToString($sha256.ComputeHash($entryStream)).Replace('-', '')
-                } finally {
-                    $sha256.Dispose()
-                    $entryStream.Dispose()
-                }
-                $localHash = (Get-FileHash -LiteralPath $inf.FullName -Algorithm SHA256).Hash
-                $archiveInfLink = if ($entryHash -ieq $localHash) { 'PASS' } else { 'FAIL' }
-                $archiveNote = "ZIP entry '$entryName' SHA-256 compared with the local INF."
+                $fromCab = (Get-FileHash -LiteralPath $extracted[0].FullName -Algorithm SHA256).Hash
+                $local = (Get-FileHash -LiteralPath $inf.FullName -Algorithm SHA256).Hash
+                $archiveInfLink = if ($fromCab -ieq $local) { 'PASS' } else { 'FAIL' }
+                $archiveNote = "CAB entry '$entryName' SHA-256 compared with the local INF."
             }
-        } finally { $zip.Dispose() }
-    } catch {
-        $archiveInfLink = 'FAIL'
-        $archiveNote = "ZIP could not be checked: $($_.Exception.Message)"
-    } finally { $archiveStream.Dispose() }
+        } finally { Remove-Item -LiteralPath $cabWork -Recurse -Force -ErrorAction SilentlyContinue }
+    } else {
+        Add-Type -AssemblyName System.IO.Compression
+        $archiveStream = [IO.File]::OpenRead((Resolve-Path -LiteralPath $PackageFile).ProviderPath)
+        try {
+            $zip = New-Object System.IO.Compression.ZipArchive($archiveStream, [IO.Compression.ZipArchiveMode]::Read, $false)
+            try {
+                $entries = @($zip.Entries | Where-Object { $_.FullName.Replace('\', '/') -ceq $entryName })
+                if ($entries.Count -ne 1) {
+                    $archiveInfLink = 'FAIL'
+                    $archiveNote = "Expected exactly one ZIP entry '$entryName'; found $($entries.Count)."
+                } else {
+                    $entryStream = $entries[0].Open()
+                    $sha256 = [Security.Cryptography.SHA256]::Create()
+                    try {
+                        $entryHash = [BitConverter]::ToString($sha256.ComputeHash($entryStream)).Replace('-', '')
+                    } finally {
+                        $sha256.Dispose()
+                        $entryStream.Dispose()
+                    }
+                    $localHash = (Get-FileHash -LiteralPath $inf.FullName -Algorithm SHA256).Hash
+                    $archiveInfLink = if ($entryHash -ieq $localHash) { 'PASS' } else { 'FAIL' }
+                    $archiveNote = "ZIP entry '$entryName' SHA-256 compared with the local INF."
+                }
+            } finally { $zip.Dispose() }
+        } catch {
+            $archiveInfLink = 'FAIL'
+            $archiveNote = "ZIP could not be checked: $($_.Exception.Message)"
+        } finally { $archiveStream.Dispose() }
     }
 }
 
