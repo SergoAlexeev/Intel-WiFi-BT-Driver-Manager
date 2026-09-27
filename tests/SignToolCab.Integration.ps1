@@ -23,8 +23,11 @@ try {
     $originalExit = $LASTEXITCODE
     Write-Host "Original extracted INF/CAT: exit $originalExit; $result"
     Add-Content -LiteralPath $inf -Value '; deliberate test modification'
-    $tampered = & $tool verify /kp /v /c $cat $inf 2>&1 | Out-String
-    $tamperedExit = $LASTEXITCODE
+    $ErrorActionPreference = 'Continue'
+    try {
+        $tampered = & $tool verify /kp /v /c $cat $inf 2>&1 | Out-String
+        $tamperedExit = $LASTEXITCODE
+    } finally { $ErrorActionPreference = 'Stop' }
     Write-Host "Modified INF/CAT: exit $tamperedExit; $tampered"
     if ($tamperedExit -eq 0) { throw 'Tampered INF was accepted by SignTool.' }
     if ($originalExit -ne 0) {
