@@ -57,9 +57,25 @@ function Test-ModelSection([string]$Section, [string]$TargetArchitecture, [int]$
     return 'Compatible'
 }
 
+function Collapse-EquivalentRevisionRows($Rows) {
+    # An instance ID may omit REV while an INF lists several REV-specific IDs.
+    # Collapse only if every candidate is the same device, version and install
+    # section; conflicting rows remain ambiguous for manual review.
+    $items = @($Rows)
+    if ($items.Count -le 1) { return $items }
+    $keys = @($items | ForEach-Object {
+        $r = $_
+        @([string]$r.DriverVersion, [string]$r.DriverDate, [string]$r.ModelSection,
+          [string]$r.InstallSection, [string]$r.DeviceName, [string]$r.Provider,
+          [string]$r.Class, [string]$r.InfFile) -join [char]31
+    } | Select-Object -Unique)
+    if ($keys.Count -eq 1) { return @($items[0]) }
+    return $items
+}
+
 function Select-ApplicableRows($Match, [string]$TargetArchitecture, [int]$TargetBuild) {
-    $compatible = @($Match.Rows | Where-Object { (Test-ModelSection ([string]$_.ModelSection) $TargetArchitecture $TargetBuild) -eq 'Compatible' })
-    $unknown = @($Match.Rows | Where-Object { (Test-ModelSection ([string]$_.ModelSection) $TargetArchitecture $TargetBuild) -eq 'Unknown' })
+    $compatible = @(Collapse-EquivalentRevisionRows @($Match.Rows | Where-Object { (Test-ModelSection ([string]$_.ModelSection) $TargetArchitecture $TargetBuild) -eq 'Compatible' }))
+    $unknown = @(Collapse-EquivalentRevisionRows @($Match.Rows | Where-Object { (Test-ModelSection ([string]$_.ModelSection) $TargetArchitecture $TargetBuild) -eq 'Unknown' }))
     # Do not silently discard an unknown row: it may be a better Windows match.
     if ($unknown.Count) { return [PSCustomObject]@{ Status = 'Unknown'; Rows = @($compatible + $unknown) } }
     if ($compatible.Count) { return [PSCustomObject]@{ Status = 'Compatible'; Rows = $compatible } }
