@@ -40,6 +40,28 @@ try {
     @($new) | ConvertTo-Json | Set-Content -LiteralPath $candidate -Encoding UTF8
     $older = & $checker @base
     if ($older.Verdict -ne 'REJECT') { throw 'Older candidate was accepted.' }
+    # Mock CIM only inside this test. The audited tool remains read-only.
+    function Get-CimInstance {
+        param([string]$ClassName)
+        if ($ClassName -ne 'Win32_PnPSignedDriver') { throw 'Unexpected CIM class.' }
+        [PSCustomObject]@{ DeviceID = "$id\1"; DriverVersion = '24.70.0.3' }
+    }
+    $new.DriverVersion = '24.80.0.1'
+    @($new) | ConvertTo-Json | Set-Content -LiteralPath $candidate -Encoding UTF8
+    $live = & $checker @base -VerifyInstalledDevice
+    if ($live.InstalledDeviceCheck -ne 'PASS' -or $live.Verdict -ne 'MANUAL_REVIEW') {
+        throw 'Live device match or incomplete package handling failed.'
+    }
+    function Get-CimInstance {
+        param([string]$ClassName)
+        if ($ClassName -ne 'Win32_PnPSignedDriver') { throw 'Unexpected CIM class.' }
+        [PSCustomObject]@{ DeviceID = "$id\1"; DriverVersion = '24.90.0.1' }
+    }
+    $stale = & $checker @base -VerifyInstalledDevice
+    if ($stale.InstalledDeviceCheck -ne 'VERSION_MISMATCH' -or $stale.Verdict -ne 'REJECT') {
+        throw 'Stale installed driver report was accepted.'
+    }
+    Remove-Item Function:\Get-CimInstance -ErrorAction SilentlyContinue
     Write-Host 'Combined candidate checks passed. No driver was downloaded or installed.'
 } finally {
     Remove-Item -LiteralPath $folder -Recurse -Force -ErrorAction SilentlyContinue
