@@ -31,7 +31,7 @@
 powershell.exe -NoProfile -ExecutionPolicy Bypass -File .\tools\Test-DriverPackage.ps1 -InfPath 'C:\Drivers\Export\netwtw08.inf'
 ```
 
-Если имеется исходный загруженный файл и заранее известный SHA-256 или SHA-512, передайте `-PackageFile` и `-ExpectedSha256` либо `-ExpectedSha512`. Параметр `-SourceUrl` лишь записывает заявленный адрес; он не доказывает происхождение файла. Для проверки связи INF с подписанным каталогом нужен `signtool.exe` из Windows SDK: укажите `-SignToolPath` либо добавьте его в PATH. При отсутствии SignTool результат `InfCatalogMembership` останется `UNVERIFIED`. Для успешного `VERIFIED_LOCAL_PACKAGE` должны совпасть хеш, подпись каталога и проверка INF через SignTool. Это ещё не подтверждение пригодности пакета для конкретного устройства и не разрешение на установку.
+Если имеется исходный загруженный файл и заранее известный SHA-256 или SHA-512, передайте `-PackageFile` и `-ExpectedSha256` либо `-ExpectedSha512`. Параметр `-SourceUrl` лишь записывает заявленный адрес; он не доказывает происхождение файла. Для проверки связи INF с подписанным каталогом нужен `signtool.exe` из Windows SDK: укажите `-SignToolPath` либо добавьте его в PATH. При отсутствии SignTool результат `InfCatalogMembership` останется `UNVERIFIED`. Статус `LOCAL_CHECKS_PASSED` означает, что совпали хеш, подпись каталога и проверка INF через SignTool. Связь исходного архива с извлечённым INF пока не проверяется (`ArchiveInfLink = UNVERIFIED`). Это не подтверждение пригодности пакета для конкретного устройства и не разрешение на установку.
 
 ## Ограничения
 
