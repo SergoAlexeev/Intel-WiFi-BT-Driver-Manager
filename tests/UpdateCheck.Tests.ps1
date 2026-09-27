@@ -106,4 +106,10 @@ function Invoke-WebRequest { throw 'Unexpected network request' }
 Show-UpdateCheck | Out-Null
 $script:mockIntelWireless = $true
 Show-UpdateCheck | Out-Null
+$sixthCpu.Name = 'Intel(R) Core(TM) i7-10710U CPU'
+function Test-GraphicsPackageMatch { return $true }
+$output = Show-UpdateCheck 6>&1 | Out-String
+if ($output -notmatch 'Update available' -or $output -notmatch 'Newer online releases are not checked') {
+    throw "Graphics candidate details or version status were lost: $output"
+}
 Write-Host 'Update catalogue checks passed. No network, download or installation was requested.'
