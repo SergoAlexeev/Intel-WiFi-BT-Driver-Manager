@@ -14,11 +14,13 @@ param(
     [ValidatePattern('^[A-Fa-f0-9]{64}$')][string]$ExpectedSha256,
     [ValidatePattern('^[A-Fa-f0-9]{128}$')][string]$ExpectedSha512,
     [ValidatePattern('^https://')][string]$SourceUrl,
+    [string]$ArchiveEntry,
     [ValidateScript({ Test-Path -LiteralPath $_ -PathType Leaf })][string]$SignToolPath
 )
 $ErrorActionPreference = 'Stop'
 if (($ExpectedSha256 -or $ExpectedSha512) -and -not $PackageFile) { throw 'Expected hash requires PackageFile.' }
 if ($ExpectedSha256 -and $ExpectedSha512) { throw 'Choose one expected hash algorithm.' }
+if ($ArchiveEntry -and -not $PackageFile) { throw 'ArchiveEntry requires PackageFile.' }
 $inf = Get-Item -LiteralPath $InfPath
 if ($inf.Extension -ine '.inf') { throw 'InfPath must point to an INF file.' }
 
@@ -67,9 +69,50 @@ if ($catalogNames.Count -eq 1 -and $catalogNames[0] -match '^[^\\/:*?"<>|]+\.cat
         }
     }
 }
-$status = if ($hash -eq 'FAIL' -or $catalogSignature -eq 'FAIL' -or $membership -eq 'FAIL') {
+$archiveInfLink = 'UNVERIFIED'
+$archiveNote = 'Archive-to-INF link was not checked.'
+if ($ArchiveEntry) {
+    # ZIP is the only container currently supported. An explicit entry avoids
+    # guessing which INF to trust when an archive contains multiple copies.
+    if ([IO.Path]::GetExtension($PackageFile) -ine '.zip') {
+        throw 'ArchiveEntry is supported only for a ZIP PackageFile.'
+    }
+    $entryName = $ArchiveEntry.Replace('\\', '/')
+    if ($entryName.StartsWith('/') -or $entryName -match '(^|/)\\.\\.?(/|$)' -or $entryName -match '^[A-Za-z]:') {
+        throw 'ArchiveEntry must be a relative path inside the ZIP.'
+    }
+    Add-Type -AssemblyName System.IO.Compression
+    $archiveStream = [IO.File]::OpenRead((Resolve-Path -LiteralPath $PackageFile).ProviderPath)
+    try {
+        $zip = New-Object System.IO.Compression.ZipArchive($archiveStream, [IO.Compression.ZipArchiveMode]::Read, $false)
+        try {
+            $entries = @($zip.Entries | Where-Object { $_.FullName -ceq $entryName })
+            if ($entries.Count -ne 1) {
+                $archiveInfLink = 'FAIL'
+                $archiveNote = "Expected exactly one ZIP entry '$entryName'; found $($entries.Count)."
+            } else {
+                $entryStream = $entries[0].Open()
+                $sha256 = [Security.Cryptography.SHA256]::Create()
+                try {
+                    $entryHash = [BitConverter]::ToString($sha256.ComputeHash($entryStream)).Replace('-', '')
+                } finally {
+                    $sha256.Dispose()
+                    $entryStream.Dispose()
+                }
+                $localHash = (Get-FileHash -LiteralPath $inf.FullName -Algorithm SHA256).Hash
+                $archiveInfLink = if ($entryHash -ieq $localHash) { 'PASS' } else { 'FAIL' }
+                $archiveNote = "ZIP entry '$entryName' SHA-256 compared with the local INF."
+            }
+        } finally { $zip.Dispose() }
+    } catch {
+        $archiveInfLink = 'FAIL'
+        $archiveNote = "ZIP could not be checked: $($_.Exception.Message)"
+    } finally { $archiveStream.Dispose() }
+}
+
+$status = if ($archiveInfLink -eq 'FAIL' -or $hash -eq 'FAIL' -or $catalogSignature -eq 'FAIL' -or $membership -eq 'FAIL') {
     'FAIL'
-} elseif ($hash -eq 'PASS' -and $catalogSignature -eq 'PASS' -and $membership -eq 'PASS') {
+} elseif ($hash -eq 'PASS' -and $catalogSignature -eq 'PASS' -and $membership -eq 'PASS' -and $archiveInfLink -eq 'PASS') {
     'LOCAL_CHECKS_PASSED'
 } else { 'UNVERIFIED' }
 
@@ -86,7 +129,8 @@ $status = if ($hash -eq 'FAIL' -or $catalogSignature -eq 'FAIL' -or $membership 
     InfCatalogMembership = $membership
     SystemInfCatalogSignature = $systemInfCatalog
     SystemInfSigner = $systemInfSigner
-    ArchiveInfLink = 'UNVERIFIED'
+    ArchiveEntry = $ArchiveEntry
+    ArchiveInfLink = $archiveInfLink
     Status = $status
-    Note = 'A declared URL is not proof of origin. A system catalog signature does not identify the exported CAT. The archive-to-extracted-INF link is unverified. Verify expected hashes from trusted release records. No driver was installed.'
+    Note = "A declared URL is not proof of origin. A system catalog signature does not identify the exported CAT. $archiveNote Verify expected hashes from trusted release records. No driver was installed."
 }
