@@ -98,6 +98,64 @@ try {
             $nativeCatalogForSameBytes = 'PASS'
         }
     }
+    $candidateVerdict = 'NOT_CHECKED'
+    $candidateMatch = 'NOT_CHECKED'
+    if ($installed.InfName -match '(?i)^oem[0-9]+\.inf
+    $candidate = [version]$meta.driverVersion
+    $result = if ($version -eq $candidate) { 'SAME_VERSION' }
+              elseif ($version -gt $candidate) { 'INSTALLED_NEWER_THAN_REFERENCE' }
+              else { 'CANDIDATE_REQUIRES_REVIEW' }
+    Say 'Этап 3/3. Сравниваю версию и байты INF с установленным драйвером.' 'Step 3/3. Comparing the version and INF bytes with the installed driver.'
+    Say "Установлено: $version; CAB INF: $candidate; совпадение INF по байтам: $sameBytes; результат: $result." "Installed: $version; CAB INF: $candidate; installed INF bytes match: $sameBytes; result: $result."
+    Say "Каталог Windows для побайтно совпадающего установленного INF: $nativeCatalogForSameBytes (не удостоверяет извлечённый CAT)." "Windows catalog for the identical installed INF: $nativeCatalogForSameBytes (does not verify the extracted CAT)."
+    Say "Общий вывод по устройству: $candidateVerdict; совпадение ID: $candidateMatch. Это не разрешение на установку." "Combined device verdict: $candidateVerdict; ID match: $candidateMatch. This does not authorize installation."
+    Say "INF из проверенного CAB: $($audit.ArchiveInfLink); подпись CAT: $($audit.CatalogSignature); принадлежность INF этому CAT: $($audit.InfCatalogMembership). Каталожная запись Microsoft и публикация Intel для этого пакета пока не установлены. Никакой драйвер не устанавливался." "INF from hashed CAB: $($audit.ArchiveInfLink); CAT signature: $($audit.CatalogSignature); INF/CAT membership: $($audit.InfCatalogMembership). No Microsoft Catalog record or Intel release page for this CAB has been confirmed. No driver was installed."
+    [PSCustomObject]@{
+        Status = $result
+        CandidateVerdict = $candidateVerdict
+        CandidateMatch = $candidateMatch
+        InstalledVersion = [string]$version
+        CandidateInfVersion = [string]$candidate
+        HardwareIdRows = $rows.Count
+        CabHash = 'PASS'
+        ArchiveInfLink = $audit.ArchiveInfLink
+        CatalogSignature = $audit.CatalogSignature
+        InfCatalogMembership = $audit.InfCatalogMembership
+        WindowsCatalogForSameBytes = $nativeCatalogForSameBytes
+        InstalledInfSameBytes = $sameBytes
+        Installation = 'NOT_STARTED'
+        SourceHost = 'download.windowsupdate.com'
+    }
+} finally {
+    Remove-Item -LiteralPath $work -Recurse -Force -ErrorAction SilentlyContinue
+}
+ -and
+        (Test-Path -LiteralPath $installedInfPath -PathType Leaf)) {
+        $installedReport = Join-Path $work 'installed.json'
+        & $generator -Path $installedInfPath -OutputPath $installedReport
+        $checker = Join-Path $PSScriptRoot 'Test-DriverCandidate.ps1'
+        if (-not (Test-Path -LiteralPath $checker -PathType Leaf)) { throw "Missing candidate checker: $checker" }
+        $candidateArgs = @{
+            InstalledReport = $installedReport
+            CandidateReport = $report
+            CandidateInf = $infs[0].FullName
+            HardwareId = $installed.DeviceID
+            Architecture = if ([Environment]::Is64BitOperatingSystem) { 'amd64' } else { 'x86' }
+            OsBuild = [Environment]::OSVersion.Version.Build
+            PackageFile = $cabPath
+            ExpectedSha256 = $pin
+            ArchiveEntry = 'ibtusb.inf'
+            Language = $Language
+            VerifyInstalledDevice = $true
+        }
+        if ($SignToolPath) { $candidateArgs.SignToolPath = $SignToolPath }
+        $decision = & $checker @candidateArgs
+        $candidateVerdict = $decision.Verdict
+        $candidateMatch = $decision.CandidateMatch
+        if ($decision.ArchiveInfLink -ne 'PASS' -or $decision.InfCatalogMembership -eq 'FAIL') {
+            throw "Combined candidate audit failed: $candidateVerdict"
+        }
+    }
     $version = [version]$installed.DriverVersion
     $candidate = [version]$meta.driverVersion
     $result = if ($version -eq $candidate) { 'SAME_VERSION' }
