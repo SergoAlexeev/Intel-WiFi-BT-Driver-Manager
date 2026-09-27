@@ -33,5 +33,10 @@ try {
     $old | ConvertTo-Json | Set-Content -LiteralPath $oldPath -Encoding UTF8
     $result = (& $comparer -InstalledReport $oldPath -CandidateReport $newPath -HardwareId 'PCI\VEN_8086&DEV_191B&SUBSYS_380217AA\1' -Architecture amd64 -OsBuild 26200 6>&1 | Out-String)
     if ($result -notmatch 'Candidate: match Generic; rows 1' -or $result -notmatch 'Candidate INF version') { throw "Generic Graphics 530 ID was rejected: $result" }
+    $other = $new | Select-Object *
+    $other | Add-Member -NotePropertyName InstallSection -NotePropertyValue DifferentInstall -Force
+    @($new, $other) | ConvertTo-Json | Set-Content -LiteralPath $newPath -Encoding UTF8
+    $result = (& $comparer -InstalledReport $oldPath -CandidateReport $newPath -HardwareId 'PCI\VEN_8086&DEV_191B&SUBSYS_380217AA\1' -Architecture amd64 -OsBuild 26200 6>&1 | Out-String)
+    if ($result -notmatch 'Multiple matching rows' -or $result -match 'Candidate INF version') { throw "Ambiguous install mappings were accepted: $result" }
     Write-Host 'INF comparison checks passed. No download or installation was requested.'
 } finally { Remove-Item -LiteralPath $root -Recurse -Force -ErrorAction SilentlyContinue }
