@@ -11,7 +11,8 @@
 param(
     [Parameter(Mandatory = $true)][ValidateScript({ Test-Path -LiteralPath $_ -PathType Leaf })][string]$InfPath,
     [ValidateScript({ Test-Path -LiteralPath $_ -PathType Leaf })][string]$PackageFile,
-    [ValidatePattern('^[A-Fa-f0-9]{64}
+    [ValidatePattern('^[A-Fa-f0-9]{64}$')][string]$ExpectedSha256,
+    [ValidatePattern('^[A-Fa-f0-9]{128}$')][string]$ExpectedSha512,
     [ValidatePattern('^https://')][string]$SourceUrl,
     [ValidateScript({ Test-Path -LiteralPath $_ -PathType Leaf })][string]$SignToolPath
 )
