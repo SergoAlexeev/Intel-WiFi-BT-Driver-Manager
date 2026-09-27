@@ -4,7 +4,7 @@ $tokens = $null
 $parseErrors = $null
 $ast = [System.Management.Automation.Language.Parser]::ParseFile($manager, [ref]$tokens, [ref]$parseErrors)
 if ($parseErrors.Count -gt 0) { throw 'Manager does not parse' }
-foreach ($name in @('Convert-DriverCatalogue', 'Get-DriverCatalogueKey')) {
+foreach ($name in @('Convert-DriverCatalogue', 'Get-DriverCatalogueKey', 'Test-Graphics6thGenReference', 'Show-UpdateCheck')) {
     $definitions = @($ast.FindAll({ param($node) $node -is [System.Management.Automation.Language.FunctionDefinitionAst] -and $node.Name -eq $name }, $true))
     if ($definitions.Count -ne 1) { throw "Expected one definition of $name" }
     . ([scriptblock]::Create($definitions[0].Extent.Text))
@@ -36,6 +36,36 @@ $device.DeviceID = 'USB\VID_8087&PID_0026\1'
 if ((Get-DriverCatalogueKey $device Bluetooth) -ne 'USB:0026') { throw 'Bluetooth hardware ID matching failed' }
 $device.DeviceID = 'USB\VID_1234&PID_0026\1'
 if (Get-DriverCatalogueKey $device Bluetooth) { throw 'Non-Intel device was matched' }
+$sixthDevice = [pscustomobject]@{ DeviceClass = 'DISPLAY'; DeviceID = 'PCI\VEN_8086&DEV_191B&SUBSYS_00000000\1'; DeviceName = 'Intel(R) HD Graphics 530' }
+$sixthCpu = [pscustomobject]@{ Name = 'Intel(R) Core(TM) i7-6700HQ CPU @ 2.60GHz' }
+$sixthOs = [pscustomobject]@{ Caption = 'Windows 11 Home'; OSArchitecture = '64-bit' }
+if (-not (Test-Graphics6thGenReference $sixthCpu $sixthDevice $sixthOs)) { throw '6th Gen graphics read-only identification failed' }
+$sixthDevice.DeviceID = 'PCI\VEN_10DE&DEV_191B\1'
+if (Test-Graphics6thGenReference $sixthCpu $sixthDevice $sixthOs) { throw 'Non-Intel display was identified' }
+$sixthDevice.DeviceID = 'PCI\VEN_8086&DEV_191B\1'
+$sixthCpu.Name = 'Intel(R) Core(TM) i7-10710U CPU'
+if (Test-Graphics6thGenReference $sixthCpu $sixthDevice $sixthOs) { throw '10th Gen was identified as 6th Gen' }
 try { Convert-DriverCatalogue '| DEV_02F0 | AX201 | Model | Wi-Fi 6 | invalid | date |' WiFi | Out-Null; throw 'Invalid table was accepted' }
 catch { if ($_.Exception.Message -eq 'Invalid table was accepted') { throw } }
+
+# A laptop with Intel graphics and non-Intel wireless must cause no catalogue requests.
+$sixthCpu.Name = 'Intel(R) Core(TM) i7-6700HQ CPU'
+$script:graphics6thReferenceVersion = [version]'31.0.101.2115'
+$script:graphics6thReferenceUri = 'https://www.intel.com/content/www/us/en/download/762755/intel-6th-gen-processor-graphics-windows.html'
+$script:wifiCatalogueUri = 'https://example.invalid/wifi'
+$script:bluetoothCatalogueUri = 'https://example.invalid/bt'
+function L($Ru, $En) { return $En }
+function Test-GraphicsPackageMatch { return $false }
+function Get-CimInstance($ClassName) {
+    switch ($ClassName) {
+        'Win32_Processor' { return $sixthCpu }
+        'Win32_OperatingSystem' { return $sixthOs }
+        'Win32_PnPSignedDriver' {
+            [pscustomobject]@{ DeviceClass = 'DISPLAY'; DeviceID = 'PCI\VEN_8086&DEV_191B\1'; DeviceName = 'Intel(R) HD Graphics 530'; DriverVersion = '31.0.101.2125' }
+            [pscustomobject]@{ DeviceClass = 'NET'; DeviceID = 'PCI\VEN_168C&DEV_0042\1'; DeviceName = 'Qualcomm Wireless'; DriverVersion = '12.0.0.1259' }
+        }
+    }
+}
+function Invoke-WebRequest { throw 'Unexpected network request' }
+Show-UpdateCheck | Out-Null
 Write-Host 'Update catalogue checks passed. No network, download or installation was requested.'
