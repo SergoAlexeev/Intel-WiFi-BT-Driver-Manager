@@ -46,8 +46,14 @@ try {
     $suppliedRows = @(Get-Content -LiteralPath $CandidateReport -Raw | ConvertFrom-Json)
     $actualRows = @(Get-Content -LiteralPath $generatedReport -Raw | ConvertFrom-Json)
     $fields = @('HardwareId', 'DriverVersion', 'DriverDate', 'ModelSection', 'InstallSection', 'DeviceName', 'Provider', 'Class')
-    $suppliedKeys = @($suppliedRows | ForEach-Object { ($fields | ForEach-Object { [string]$_ + '=' + [string]$($_.PSObject.Properties[$_].Value) }) -join [char]31 } | Sort-Object)
-    $actualKeys = @($actualRows | ForEach-Object { ($fields | ForEach-Object { [string]$_ + '=' + [string]$($_.PSObject.Properties[$_].Value) }) -join [char]31 } | Sort-Object)
+    $suppliedKeys = @($suppliedRows | ForEach-Object {
+        $row = $_
+        (@($fields | ForEach-Object { $field = $_; $field + '=' + [string]$row.$field }) -join [char]31)
+    } | Sort-Object)
+    $actualKeys = @($actualRows | ForEach-Object {
+        $row = $_
+        (@($fields | ForEach-Object { $field = $_; $field + '=' + [string]$row.$field }) -join [char]31)
+    } | Sort-Object)
     $reportMatchesInf = ($suppliedKeys.Count -gt 0 -and $suppliedKeys.Count -eq $actualKeys.Count -and
         (($suppliedKeys -join [char]30) -ceq ($actualKeys -join [char]30)))
 } finally {
