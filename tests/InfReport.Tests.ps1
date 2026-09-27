@@ -26,7 +26,7 @@ Other="Other Intel device"
     Set-Content -LiteralPath (Join-Path $root 'not-a-driver.inf') -Value '[Version]' -Encoding ASCII
     $json = Join-Path $root 'report.json'
     & $generator -Path $root -OutputPath $json | Out-Null
-    $rows = @(Get-Content -LiteralPath $json -Raw | ConvertFrom-Json)
+    $rows = Get-Content -LiteralPath $json -Raw | ConvertFrom-Json
     if ($rows.Count -ne 3) { throw "Expected 3 hardware IDs, got $($rows.Count)" }
     if (@($rows | Where-Object { $_.HardwareId -eq 'PCI\VEN_8086&DEV_02F0&SUBSYS_12345678' -and $_.DriverVersion -eq '24.70.0.3' -and $_.Provider -eq 'Intel Corporation' -and $_.DeviceName -eq 'Intel Wi-Fi 6 AX201' -and $_.ModelSection -eq 'Intel.NTamd64.10.0' }).Count -ne 1) { throw 'INF parsing or string resolution failed' }
     Write-Host 'INF report checks passed. No driver was downloaded or installed.'
