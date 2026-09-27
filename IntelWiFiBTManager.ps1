@@ -12,6 +12,8 @@
     Необязательный путь к официальному установщику gfx_win_101.2145.exe.
 .PARAMETER Inventory
     Показывает сведения об устройствах Intel и платформе без установки драйверов.
+.PARAMETER CheckUpdates
+    Проверяет версии Wi-Fi, Bluetooth и Graphics без скачивания драйверов и установки.
 .PARAMETER Language
     Язык сообщений менеджера: ru или en. Без параметра предлагается выбор.
 .PARAMETER LogPath
@@ -22,6 +24,7 @@ param(
     [switch]$Graphics,
     [string]$GraphicsInstallerPath,
     [switch]$Inventory,
+    [switch]$CheckUpdates,
     [ValidateSet('ru', 'en')][string]$Language,
     [string]$LogPath
 )
@@ -67,6 +70,8 @@ $expectedProject = 'https://github.com/FirstEverTech/Universal-Intel-WiFi-BT-Upd
 $graphicsVersion = [version]'31.0.101.2145'
 $graphicsSha512 = 'D30369A17F66A787D477FE77787D934A1E74581F27CB19BA1608DF22E76C8DCE68B589DB327456527AE9228D8788663CE005467DF84C722C03F59A2E9297C2D5'
 $graphicsUri = 'https://downloadmirror.intel.com/929187/gfx_win_101.2145.exe'
+$wifiCatalogueUri = 'https://raw.githubusercontent.com/FirstEverTech/Universal-Intel-WiFi-BT-Updater/main/data/intel-wifi-driver-latest.md'
+$bluetoothCatalogueUri = 'https://raw.githubusercontent.com/FirstEverTech/Universal-Intel-WiFi-BT-Updater/main/data/intel-bt-driver-latest.md'
 $script:offerGraphicsRestart = $false
 
 function Test-GraphicsPackageMatch($Processor, $Device, $Os) {
@@ -148,6 +153,112 @@ function Show-IntelInventory {
         $devices | Select-Object DeviceClass, DriverVersion, DeviceName | Format-Table -AutoSize
     }
     Write-Host (L 'Этот отчёт не определяет наличие обновлений чипсета, BIOS или микрокода.' 'This inventory does not check for chipset, BIOS, or microcode updates.') -ForegroundColor Yellow
+}
+
+function Convert-DriverCatalogue([string]$Content, [ValidateSet('WiFi', 'Bluetooth')][string]$Kind) {
+    $versions = @{}
+    $section = ''
+    foreach ($line in ($Content -split '\r?\n')) {
+        if ($Kind -eq 'Bluetooth' -and $line -match '^## Supported (USB|PCI) Devices') { $section = $Matches[1]; continue }
+        if ($Kind -eq 'Bluetooth' -and $line -match '^## ') { $section = ''; continue }
+        if ($line -notmatch '^\|') { continue }
+        $cells = @($line.Trim().Trim('|').Split('|') | ForEach-Object { $_.Trim() })
+        if ($Kind -eq 'WiFi') {
+            if ($cells.Count -lt 6 -or $cells[0] -notmatch '^DEV_([0-9A-Fa-f]{4})$') { continue }
+            $key = "PCI:$($Matches[1].ToUpperInvariant())"
+            $value = $cells[4]
+        } else {
+            if ($cells.Count -lt 6 -or $section -notin @('USB', 'PCI') -or $cells[0] -notmatch '^[0-9A-Fa-f]{4}$') { continue }
+            $key = "${section}:$($cells[0].ToUpperInvariant())"
+            $value = $cells[4]
+        }
+        try { $parsed = [version]$value } catch { continue }
+        if ($versions.ContainsKey($key) -and $versions[$key] -ne $parsed) {
+            throw "Conflicting catalogue versions for $key"
+        }
+        $versions[$key] = $parsed
+    }
+    if ($versions.Count -eq 0) { throw "No valid entries in $Kind catalogue" }
+    return $versions
+}
+
+function Get-DriverCatalogueKey($Device, [ValidateSet('WiFi', 'Bluetooth')][string]$Kind) {
+    if ($Kind -eq 'WiFi' -and $Device.DeviceID -match '(?i)^PCI\\VEN_8086&DEV_([0-9A-F]{4})(?:&|\\|$)') {
+        return "PCI:$($Matches[1].ToUpperInvariant())"
+    }
+    if ($Kind -eq 'Bluetooth') {
+        if ($Device.DeviceID -match '(?i)^USB\\VID_8087&PID_([0-9A-F]{4})(?:&|\\|$)') {
+            return "USB:$($Matches[1].ToUpperInvariant())"
+        }
+        if ($Device.DeviceID -match '(?i)^PCI\\VEN_8086&DEV_([0-9A-F]{4})(?:&|\\|$)') {
+            return "PCI:$($Matches[1].ToUpperInvariant())"
+        }
+    }
+    return $null
+}
+
+function Show-UpdateCheck {
+    Write-Host (L 'Проверка обновлений: только чтение версий и таблиц совместимости. Драйверы не загружаются и не устанавливаются.' 'Update check: reading versions and compatibility tables only. No drivers are downloaded or installed.') -ForegroundColor Cyan
+    $catalogues = @{}
+    foreach ($source in @(@('WiFi', $wifiCatalogueUri), @('Bluetooth', $bluetoothCatalogueUri))) {
+        try {
+            $response = Invoke-WebRequest -Uri $source[1] -UseBasicParsing -TimeoutSec 15 -ErrorAction Stop
+            $catalogues[$source[0]] = Convert-DriverCatalogue ([string]$response.Content) $source[0]
+        } catch {
+            Write-Warning (L "Источник $($source[0]) недоступен или его формат изменился: $($source[1]); $($_.Exception.Message)" "The $($source[0]) source is unavailable or its format changed: $($source[1]); $($_.Exception.Message)")
+        }
+    }
+    $processor = Get-CimInstance Win32_Processor | Select-Object -First 1
+    $os = Get-CimInstance Win32_OperatingSystem
+    $devices = @(Get-CimInstance Win32_PnPSignedDriver | Where-Object {
+        ($_.DeviceClass -in @('NET', 'Bluetooth', 'DISPLAY')) -and
+        ($_.DeviceID -match '(?i)^(PCI\\VEN_8086|USB\\VID_8087)&') -and
+        ($_.DeviceClass -ne 'NET' -or $_.DeviceName -match '(?i)Wi-Fi|Wireless')
+    } | Sort-Object DeviceClass, DeviceName)
+    $results = foreach ($device in $devices) {
+        $kind = switch ($device.DeviceClass.ToUpperInvariant()) {
+            'NET' { 'WiFi' }
+            'BLUETOOTH' { 'Bluetooth' }
+            'DISPLAY' { 'Graphics' }
+        }
+        $available = $null
+        $sourceLabel = ''
+        if ($kind -eq 'Graphics') {
+            if (Test-GraphicsPackageMatch $processor $device $os) {
+                $available = $graphicsVersion
+                $sourceLabel = 'Intel Graphics 31.0.101.2145 (pinned)'
+            }
+        } elseif ($catalogues.ContainsKey($kind)) {
+            $key = Get-DriverCatalogueKey $device $kind
+            if ($key -and $catalogues[$kind].ContainsKey($key)) {
+                $available = $catalogues[$kind][$key]
+                $sourceLabel = if ($kind -eq 'WiFi') { $wifiCatalogueUri } else { $bluetoothCatalogueUri }
+            }
+        }
+        $status = L 'Не удалось определить' 'Unknown'
+        try {
+            $installed = [version]$device.DriverVersion
+            if ($available) {
+                if ($installed -lt $available) { $status = L 'Доступно обновление' 'Update available' }
+                elseif ($installed -eq $available) { $status = L 'Версия совпадает' 'Version matches' }
+                else { $status = L 'Установлена более новая версия' 'Newer version installed' }
+            }
+        } catch { }
+        [PSCustomObject]@{
+            Type = $kind
+            Device = $device.DeviceName
+            Installed = $device.DriverVersion
+            Available = if ($available) { [string]$available } else { '-' }
+            Status = $status
+            Source = $sourceLabel
+        }
+    }
+    if ($results.Count -eq 0) { Write-Host (L 'Поддерживаемые устройства Intel не обнаружены.' 'No supported Intel devices found.'); return }
+    $results | Format-Table Type, Device, Installed, Available, Status -AutoSize -Wrap
+    foreach ($result in $results) {
+        if ($result.Source) { Write-Host "$($result.Type): $($result.Source)" }
+    }
+    Write-Host (L 'Версии Wi-Fi/Bluetooth взяты из таблиц стороннего проекта и служат для предварительного уведомления. Наличие записи не гарантирует совместимость установщика или доступность файла. Для чипсета, BIOS и микрокода эта проверка обновлений пока не реализована.' 'Wi-Fi/Bluetooth versions come from third-party tables and are advisory. A match does not guarantee installer compatibility or file availability. Chipset, BIOS and microcode update checks are not implemented yet.') -ForegroundColor Yellow
 }
 
 function Update-IntelGraphics {
@@ -244,6 +355,11 @@ function Update-IntelGraphics {
 
 try {
     if ($GraphicsInstallerPath -and -not $Graphics) { throw (L 'Параметр -GraphicsInstallerPath используется только с -Graphics.' 'Use -GraphicsInstallerPath only together with -Graphics.') }
+    if ($CheckUpdates) {
+        if ($Inventory -or $Graphics -or $Silent -or $GraphicsInstallerPath) { throw (L 'Параметр -CheckUpdates используется отдельно от других режимов.' 'Use -CheckUpdates separately from other modes.') }
+        Show-UpdateCheck
+        Exit-Manager 0
+    }
     if ($Inventory) {
         if ($Graphics -or $Silent -or $GraphicsInstallerPath) { throw (L 'Параметр -Inventory используется отдельно от режимов установки.' 'Use -Inventory separately from installation modes.') }
         Write-Host (L 'Инвентаризация: только просмотр устройств; скачивания и установки не будет.' 'Inventory: read-only device listing; no downloads or installation.') -ForegroundColor Cyan
