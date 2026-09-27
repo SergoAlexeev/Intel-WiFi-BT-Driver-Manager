@@ -54,7 +54,10 @@ function Get-InfReport([string]$InfPath) {
     $strings = @{}
     if ($sections.ContainsKey('Strings')) {
         foreach ($line in $sections['Strings']) {
-            if ($line -match '^\s*([^=]+?)\s*=\s*"?(.*?)"?\s*$') { $strings[$Matches[1].Trim()] = $Matches[2].Trim('"') }
+            if ($line -match '^\s*([^=]+?)\s*=\s*"?(.*?)"?\s*$') {
+                # INF strings may concatenate quoted fragments, e.g. "Graphics" "530".
+                $strings[$Matches[1].Trim()] = ($Matches[2].Trim('"') -replace '"\s+"', ' ')
+            }
         }
     }
     $modelSections = New-Object System.Collections.ArrayList
