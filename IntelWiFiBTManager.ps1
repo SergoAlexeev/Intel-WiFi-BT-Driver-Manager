@@ -547,7 +547,11 @@ function Show-UpdateCheck {
     $unknownCount = @($results | Where-Object { $_.Status -eq (L 'Не удалось определить' 'Unknown') }).Count
     Write-Host (L "Итог: совпадений с источниками — $matchedCount; кандидатов с более высокой версией — $newerCount; нужна ручная проверка — $manualCount; версия не определена — $unknownCount." "Summary: versions matching sources: $matchedCount; candidates with a higher version: $newerCount; manual review: $manualCount; version unknown: $unknownCount.") -ForegroundColor Cyan
     Write-Host (L 'Это сравнение с доступными источниками, а не полный поиск всех новых выпусков Intel. Совпадение версий не доказывает, что обновлений больше нет.' 'This compares against available sources; it is not a complete search for all new Intel releases. Matching versions do not prove that no newer update exists.') -ForegroundColor Yellow
+    if ($cabAssessment) {
+        Write-Host (L 'Bluetooth PID_0026: версия сопоставлена с закреплённым CAB, проверенным в этом запуске; другие Bluetooth ID используют справочные источники. Связь INF с CAT без SignTool не подтверждена. Wi-Fi использует локальный снимок или таблицу стороннего проекта. Установка Wi-Fi/Bluetooth пока зависит от базовой утилиты. Чипсет, BIOS и микрокод не проверяются.' 'Bluetooth PID_0026: version compared with the pinned CAB checked in this run; other Bluetooth IDs use advisory sources. INF/CAT membership needs SignTool. Wi-Fi uses a local snapshot or third-party table. Wi-Fi/Bluetooth installation still depends on the base tool. Chipset, BIOS and microcode are not checked.') -ForegroundColor Yellow
+    } else {
     Write-Host (L 'Wi-Fi/Bluetooth: сначала локальный проверенный снимок; для остальных ID — таблицы стороннего проекта. Оба источника справочные: совпадение не гарантирует актуальность, совместимость или доступность пакета. Установка Wi-Fi/Bluetooth пока зависит от базовой утилиты. Чипсет, BIOS и микрокод не проверяются.' 'Wi-Fi/Bluetooth: reviewed local snapshot first; third-party tables for other IDs. Both are advisory: a match does not guarantee freshness, compatibility or availability. Wi-Fi/Bluetooth installation still depends on the base tool. Chipset, BIOS and microcode are not checked.') -ForegroundColor Yellow
+    }
 }
 
 function Update-IntelGraphics {
