@@ -109,7 +109,7 @@ Show-UpdateCheck | Out-Null
 $sixthCpu.Name = 'Intel(R) Core(TM) i7-10710U CPU'
 function Test-GraphicsPackageMatch { return $true }
 $output = Show-UpdateCheck 6>&1 | Out-String
-if ($output -notmatch 'Update available' -or $output -notmatch 'No\s+driver file is downloaded or verified in this mode' -or $output -notmatch 'Newer\s+online releases are not checked') {
+if ($output -notmatch 'Update available' -or $output -notmatch 'No\s+driver file is downloaded or verified in this mode' -or $output -notmatch 'Newer\s+online releases are not checked' -or $output -notmatch 'Matching versions do not prove') {
     throw "Graphics candidate details or version status were lost: $output"
 }
 Write-Host 'Update catalogue checks passed. No network, download or installation was requested.'
