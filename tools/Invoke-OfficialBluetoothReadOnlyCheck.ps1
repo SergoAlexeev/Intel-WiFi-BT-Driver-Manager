@@ -1,4 +1,4 @@
-<#
+﻿<#
 .SYNOPSIS
     Downloads and audits Intel's pinned Bluetooth EXE without executing it.
 .DESCRIPTION
