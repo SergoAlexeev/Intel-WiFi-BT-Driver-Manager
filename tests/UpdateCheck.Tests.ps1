@@ -4,7 +4,7 @@ $tokens = $null
 $parseErrors = $null
 $ast = [System.Management.Automation.Language.Parser]::ParseFile($manager, [ref]$tokens, [ref]$parseErrors)
 if ($parseErrors.Count -gt 0) { throw 'Manager does not parse' }
-foreach ($name in @('Convert-DriverCatalogue', 'Get-DriverCatalogueKey', 'Get-LocalWirelessKey', 'Get-LocalWirelessCatalogue', 'Get-GraphicsCandidateMetadata', 'Test-Graphics6thGenReference', 'Get-GraphicsReferenceFamily', 'Show-UpdateCheck')) {
+foreach ($name in @('Convert-DriverCatalogue', 'Get-DriverCatalogueKey', 'Get-LocalWirelessKey', 'Get-LocalWirelessCatalogue', 'Get-GraphicsCandidateMetadata', 'Test-Graphics6thGenReference', 'Get-GraphicsReferenceFamily', 'Show-UpdateCheck', 'Show-LocalCandidateChecks')) {
     $definitions = @($ast.FindAll({ param($node) $node -is [System.Management.Automation.Language.FunctionDefinitionAst] -and $node.Name -eq $name }, $true))
     if ($definitions.Count -ne 1) { throw "Expected one definition of $name" }
     . ([scriptblock]::Create($definitions[0].Extent.Text))
@@ -112,5 +112,39 @@ $output = Show-UpdateCheck 6>&1 | Out-String
 $normalizedOutput = $output -replace '\s+', ' '
 if ($normalizedOutput -notmatch 'Update available' -or $normalizedOutput -notmatch 'No driver file is downloaded or verified in this mode' -or $normalizedOutput -notmatch 'Newer online releases are not checked' -or $normalizedOutput -notmatch 'Matching versions do not prove') {
     throw "Graphics candidate details or version status were lost: $output"
+}
+$candidateRoot = Join-Path ([IO.Path]::GetTempPath()) ('manager-candidates-test-' + [guid]::NewGuid().ToString('N'))
+New-Item -ItemType Directory -Path $candidateRoot -Force | Out-Null
+try {
+    $script:managerRoot = Split-Path $PSScriptRoot -Parent
+    $script:uiLanguage = 'en'
+    $id = 'PCI\VEN_8086&DEV_02F0&SUBSYS_00748086\1'
+    $candidateInf = Join-Path $candidateRoot 'candidate.inf'
+    $packageFile = Join-Path $candidateRoot 'candidate.zip'
+    $installedReport = Join-Path $candidateRoot 'installed.json'
+    $candidateReport = Join-Path $candidateRoot 'candidate.json'
+    $script:CandidateManifest = Join-Path $candidateRoot 'candidates.json'
+    Set-Content -LiteralPath $candidateInf -Encoding ASCII -Value '[Version]'
+    Set-Content -LiteralPath $packageFile -Encoding ASCII -Value 'local test bytes'
+    @([pscustomobject]@{ HardwareId='PCI\VEN_8086&DEV_02F0&SUBSYS_00748086'; DriverVersion='24.70.0.3'; ModelSection='Intel.NTamd64'; InfFile='old.inf' }) | ConvertTo-Json | Set-Content -LiteralPath $installedReport -Encoding UTF8
+    @([pscustomobject]@{ HardwareId='PCI\VEN_8086&DEV_02F0&SUBSYS_00748086'; DriverVersion='24.80.0.1'; ModelSection='Intel.NTamd64'; InfFile=$candidateInf }) | ConvertTo-Json | Set-Content -LiteralPath $candidateReport -Encoding UTF8
+    $testEntry = [pscustomobject]@{
+        deviceId=$id; installedReport=$installedReport; candidateReport=$candidateReport
+        candidateInf=$candidateInf; packageFile=$packageFile
+        expectedSha256=(Get-FileHash -LiteralPath $packageFile -Algorithm SHA256).Hash
+    }
+    @{ entries = @($testEntry) } | ConvertTo-Json -Depth 5 | Set-Content -LiteralPath $script:CandidateManifest -Encoding UTF8
+    $intelDevices = @(Get-CimInstance Win32_PnPSignedDriver | Where-Object { $_.DeviceID -eq $id })
+    $candidateOutput = Show-LocalCandidateChecks $intelDevices 6>&1 | Out-String
+    if ($candidateOutput -notmatch 'MANUAL_REVIEW' -or $candidateOutput -notmatch 'Installed device') {
+        throw "Real detected device was not linked to candidate checks: $candidateOutput"
+    }
+    $testEntry.deviceId = 'PCI\VEN_8086&DEV_02F0&SUBSYS_00000000\1'
+    @{ entries = @($testEntry) } | ConvertTo-Json -Depth 5 | Set-Content -LiteralPath $script:CandidateManifest -Encoding UTF8
+    $unmatched = Show-LocalCandidateChecks $intelDevices 3>&1 6>&1 | Out-String
+    if ($unmatched -notmatch 'skipped') { throw 'Unmatched device was not skipped.' }
+} finally {
+    Remove-Item -LiteralPath $candidateRoot -Recurse -Force -ErrorAction SilentlyContinue
+    $script:CandidateManifest = $null
 }
 Write-Host 'Update catalogue checks passed. No network, download or installation was requested.'
