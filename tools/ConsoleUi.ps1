@@ -1,4 +1,4 @@
-# Shared console presentation for Windows PowerShell 5.1.
+﻿# Shared console presentation for Windows PowerShell 5.1.
 # Plain labels carry the meaning; colors are optional visual cues.
 function Write-ManagerStage {
     param(
