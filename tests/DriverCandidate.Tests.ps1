@@ -21,7 +21,9 @@ try {
     if ($result.Verdict -ne 'MANUAL_REVIEW' -or $result.Comparison -ne 'NEWER_CANDIDATE' -or -not $result.ReportInfMatchesAuditedFile) {
         throw "Incomplete package checks must require review: $($result | ConvertTo-Json -Compress)"
     }
-    $wrongId = & $checker @base -HardwareId 'PCI\VEN_8086&DEV_02F0&SUBSYS_00308086\1'
+    $base.HardwareId = 'PCI\VEN_8086&DEV_02F0&SUBSYS_00308086\1'
+    $wrongId = & $checker @base
+    $base.HardwareId = "$id\1"
     if ($wrongId.Verdict -ne 'REJECT') { throw 'Different SUBSYS was accepted.' }
     $new.InfFile = $other
     @($new) | ConvertTo-Json | Set-Content -LiteralPath $candidate -Encoding UTF8
