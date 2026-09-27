@@ -62,7 +62,7 @@ if ($catalogNames.Count -eq 1 -and $catalogNames[0] -match '^[^\\/:*?"<>|]+\.cat
 $status = if ($hash -eq 'FAIL' -or $catalogSignature -eq 'FAIL' -or $membership -eq 'FAIL') {
     'FAIL'
 } elseif ($hash -eq 'PASS' -and $catalogSignature -eq 'PASS' -and $membership -eq 'PASS') {
-    'VERIFIED_LOCAL_PACKAGE'
+    'LOCAL_CHECKS_PASSED'
 } else { 'UNVERIFIED' }
 
 [PSCustomObject]@{
@@ -76,8 +76,9 @@ $status = if ($hash -eq 'FAIL' -or $catalogSignature -eq 'FAIL' -or $membership 
     HashCheck = $hash
     CatalogSignature = $catalogSignature
     InfCatalogMembership = $membership
+    ArchiveInfLink = 'UNVERIFIED'
     Status = $status
-    Note = 'A declared URL is not proof of origin. Verify the expected hash from a trusted release record. No driver was installed.'
+    Note = 'A declared URL is not proof of origin. The archive-to-extracted-INF link is unverified. Verify expected hashes from trusted release records. No driver was installed.'
 }
 )][string]$ExpectedSha256,
     [ValidatePattern('^[A-Fa-f0-9]{128}
