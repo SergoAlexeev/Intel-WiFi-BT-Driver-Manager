@@ -14,6 +14,8 @@
     Показывает сведения об устройствах Intel и платформе без установки драйверов.
 .PARAMETER CheckUpdates
     Проверяет версии Wi-Fi, Bluetooth и Graphics без скачивания драйверов и установки.
+.PARAMETER VerifyBluetoothCab
+    При -CheckUpdates с согласия скачивает и проверяет закреплённый Bluetooth CAB для PID_0026 без установки.
 .PARAMETER CandidateManifest
     Необязательный JSON со скачанными кандидатами для локальной проверки обнаруженных устройств.
 .PARAMETER Language
@@ -27,6 +29,7 @@ param(
     [string]$GraphicsInstallerPath,
     [switch]$Inventory,
     [switch]$CheckUpdates,
+    [switch]$VerifyBluetoothCab,
     [string]$CandidateManifest,
     [ValidateSet('ru', 'en')][string]$Language,
     [string]$LogPath
@@ -399,6 +402,29 @@ function Show-UpdateCheck {
             Write-Warning (L "Источник $($source[0]) недоступен или его формат изменился: $($source[1]); $($_.Exception.Message)" "The $($source[0]) source is unavailable or its format changed: $($source[1]); $($_.Exception.Message)")
         }
     }
+    $cabAssessment = $null
+    if ($VerifyBluetoothCab) {
+        $matches = @($devices | Where-Object {
+            $_.DeviceClass -eq 'BLUETOOTH' -and $_.DeviceID -like 'USB\VID_8087&PID_0026*' -and
+            $_.DeviceName -eq 'Intel(R) Wireless Bluetooth(R)'
+        })
+        if ($matches.Count -eq 1) {
+            $pilot = Join-Path $script:managerRoot 'tools\Invoke-MicrosoftBluetoothCabReadOnlyCheck.ps1'
+            if (-not (Test-Path -LiteralPath $pilot -PathType Leaf)) {
+                throw (L 'Модуль проверки Bluetooth CAB отсутствует в папке tools.' 'Bluetooth CAB audit module is missing from tools.')
+            }
+            Write-Host (L 'Дополнительная проверка: закреплённый Bluetooth CAB для PID_0026. Загрузка только после согласия, установки нет.' 'Additional check: pinned Bluetooth CAB for PID_0026. Download requires consent; nothing is installed.')
+            $cabAssessment = & $pilot -Language $script:uiLanguage
+            if ($cabAssessment -and ($cabAssessment.CandidateVerdict -ne 'NO_NEWER_VERSION' -or
+                $cabAssessment.CabHash -ne 'PASS' -or $cabAssessment.ArchiveInfLink -ne 'PASS' -or
+                $cabAssessment.InstalledDeviceCheck -ne 'PASS' -or $cabAssessment.CandidateMatch -ne 'Exact')) {
+                Write-Warning (L 'Закреплённый CAB не подтвердил совпадение версии; таблица остаётся основанной на обычных источниках.' 'Pinned CAB did not establish a matching version; the table retains its normal sources.')
+                $cabAssessment = $null
+            }
+        } else {
+            Write-Host (L 'Подходящее устройство Bluetooth PID_0026 не найдено; специальная проверка CAB пропущена.' 'No matching Bluetooth PID_0026 found; the CAB check was skipped.')
+        }
+    }
     $results = foreach ($device in $devices) {
         $kind = switch ($device.DeviceClass.ToUpperInvariant()) {
             'NET' { 'WiFi' }
@@ -449,6 +475,12 @@ function Show-UpdateCheck {
                 $available = $catalogues[$kind][$key]
                 $sourceLabel = if ($kind -eq 'WiFi') { $wifiCatalogueUri } else { $bluetoothCatalogueUri }
             }
+        }
+        if ($kind -eq 'Bluetooth' -and $cabAssessment -and
+            $device.DeviceID -like 'USB\VID_8087&PID_0026*') {
+            $available = [version]$cabAssessment.CandidateInfVersion
+            $sourceLabel = 'download.windowsupdate.com (pinned CAB SHA-256; checked ' + (Get-Date -Format 'yyyy-MM-dd') + ')'
+            $note = L 'Для точного ID проверены версия, байты INF в CAB и подпись CAT. Этот CAB не доказывает отсутствие более новых выпусков. Принадлежность INF извлечённому CAT требует SignTool; установка не выполнялась.' 'Version, INF bytes in CAB and CAT signature were checked for the exact ID. This CAB does not rule out newer releases. SignTool is required to verify INF membership in the extracted CAT; nothing was installed.'
         }
         $status = L 'Не удалось определить' 'Unknown'
         try {
@@ -608,6 +640,7 @@ function Update-IntelGraphics {
 
 try {
     if ($GraphicsInstallerPath -and -not $Graphics) { throw (L 'Параметр -GraphicsInstallerPath используется только с -Graphics.' 'Use -GraphicsInstallerPath only together with -Graphics.') }
+    if ($VerifyBluetoothCab -and -not $CheckUpdates) { throw (L 'Параметр -VerifyBluetoothCab требует -CheckUpdates.' 'VerifyBluetoothCab requires CheckUpdates.') }
     if ($CandidateManifest -and -not $CheckUpdates) { throw (L 'Параметр -CandidateManifest требует -CheckUpdates.' 'CandidateManifest requires CheckUpdates.') }
     if ($CheckUpdates) {
         if ($Inventory -or $Graphics -or $Silent -or $GraphicsInstallerPath) { throw (L 'Параметр -CheckUpdates используется отдельно от других режимов.' 'Use -CheckUpdates separately from other modes.') }
