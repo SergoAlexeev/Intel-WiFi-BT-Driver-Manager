@@ -26,6 +26,8 @@ if (Test-Path -LiteralPath $binary -PathType Leaf) {
     }
     throw 'Existing local SignTool did not pass Microsoft signature validation.'
 }
+Say 'Зачем нужен SignTool: штатная проверка Windows подтверждает подпись установленного INF и отдельно подпись извлечённого CAT, но не связывает именно эти два извлечённых файла. SignTool проверяет, что INF содержится в данном CAT; это дополнительная проверка кандидата, а не установка драйвера.' 'Why SignTool is needed: Windows verifies the installed INF and extracted CAT separately, but does not link this exact extracted pair. SignTool checks that the INF belongs to this CAT; this audits a candidate and does not install a driver.'
+Say "Что будет скачано: пакет Microsoft Windows SDK BuildTools (около 21 МБ) из NuGet. Сверю SHA-512 пакета и подпись Microsoft у signtool.exe; сохраню инструменты только в $target. Системный SDK и драйверы не устанавливаются. При отказе проверка продолжится, а связь INF/CAT останется UNVERIFIED." "What is downloaded: Microsoft Windows SDK BuildTools NuGet package (about 21 MB). Its SHA-512 and the Microsoft signature on signtool.exe are checked; tools are kept only in $target. No system-wide SDK or drivers are installed. If declined, the audit continues with INF/CAT membership UNVERIFIED."
 $question = if ($Language -eq 'ru') {
     'Скачать около 21 МБ официального Microsoft SDK BuildTools NuGet и сохранить SignTool локально? (Y/N)'
 } else {
