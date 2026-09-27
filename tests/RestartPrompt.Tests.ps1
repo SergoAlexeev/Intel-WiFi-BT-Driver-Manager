@@ -36,13 +36,16 @@ Assert-Equal (Test-GraphicsRestartEligible 1000 $false) $false 'unknown code wit
 $script:answer = 'N'
 $script:restartCalls = 0
 $script:closeCalls = 0
+$script:cleanupCalls = 0
 function Read-Host { param([string]$Prompt) return $script:answer }
 function Close-ManagerLog { $script:closeCalls++ }
+function Clear-ManagerWorkDirectory { $script:cleanupCalls++ }
 function Restart-Computer { [CmdletBinding()] param() $script:restartCalls++ }
 
 Assert-Equal (Invoke-GraphicsRestartPrompt) $false 'declined restart'
 Assert-Equal $script:restartCalls 0 'declined: no restart call'
 Assert-Equal $script:closeCalls 0 'declined: log stays open'
+Assert-Equal $script:cleanupCalls 0 'declined: work files stay until exit'
 
 $script:answer = 'Y'
 Assert-Equal (Invoke-GraphicsRestartPrompt) $true 'accepted restart'
