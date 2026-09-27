@@ -295,7 +295,7 @@ function Get-GraphicsCandidateMetadata([string]$CataloguePath) {
             $candidateRows[0].sourcePage -notmatch '^https://[^/]+[.]intel[.]com/') {
             throw 'Catalogue entry differs from the pinned installer'
         }
-        return [PSCustomObject]@{ Source = $candidateRows[0].sourcePage; ReviewedOn = $candidateRows[0].reviewedOn; Detail = (L 'Локальная запись сверена с закреплёнными версией, адресом и SHA-512.' 'Local entry matches the pinned version, URL and SHA-512.'); Catalogue = $true }
+        return [PSCustomObject]@{ Source = $candidateRows[0].sourcePage; ReviewedOn = $candidateRows[0].reviewedOn; Detail = (L 'Данные каталога совпадают со встроенными в программу версией, адресом и ожидаемым SHA-512. Сам файл драйвера в этом режиме не скачивается и не проверяется.' 'Catalogue metadata matches the version, URL and expected SHA-512 embedded in the program. No driver file is downloaded or verified in this mode.'); Catalogue = $true }
     } catch {
         Write-Warning (L "Файл каталога не прошёл проверку: $($_.Exception.Message). Использую встроенный закреплённый пакет." "Catalogue file failed validation: $($_.Exception.Message). Using the embedded pinned package.")
         return [PSCustomObject]@{ Source = $graphicsUri; ReviewedOn = ''; Detail = (L 'Встроенный закреплённый пакет; файл каталога не подтверждён.' 'Embedded pinned package; the catalogue file is unverified.'); Catalogue = $false }
