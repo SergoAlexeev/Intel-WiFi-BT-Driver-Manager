@@ -306,7 +306,7 @@ function Get-GraphicsCandidateMetadata([string]$CataloguePath) {
     }
 }
 
-function Show-LocalCandidateChecks($DetectedDevices) {
+function Show-LocalCandidateChecks($DetectedDevices, $TargetOs) {
     if (-not $CandidateManifest) { return }
     $manifestPath = (Resolve-Path -LiteralPath $CandidateManifest -ErrorAction Stop).ProviderPath
     $manifest = Get-Content -LiteralPath $manifestPath -Raw -ErrorAction Stop | ConvertFrom-Json -ErrorAction Stop
@@ -331,6 +331,14 @@ function Show-LocalCandidateChecks($DetectedDevices) {
             continue
         }
         $arguments = @{ HardwareId = $deviceId; VerifyInstalledDevice = $true; Language = $script:uiLanguage }
+        if ($TargetOs -and $TargetOs.OSArchitecture -match '(?i)ARM64') { $arguments.Architecture = 'arm64' }
+        elseif ($TargetOs -and $TargetOs.OSArchitecture -match '64') { $arguments.Architecture = 'amd64' }
+        elseif ($TargetOs -and $TargetOs.OSArchitecture -match '32|86') { $arguments.Architecture = 'x86' }
+        if ($TargetOs -and $TargetOs.Version) {
+            try { $arguments.OsBuild = ([version]$TargetOs.Version).Build } catch {
+                Write-Warning (L 'Не удалось определить сборку Windows для проверки INF.' 'Could not determine Windows build for INF assessment.')
+            }
+        }
         foreach ($field in @('installedReport', 'candidateReport', 'candidateInf', 'packageFile')) {
             $value = [string]$entry.$field
             if (-not $value -or -not [IO.Path]::IsPathRooted($value) -or -not (Test-Path -LiteralPath $value -PathType Leaf)) {
@@ -496,7 +504,7 @@ function Show-UpdateCheck {
         $otherWireless | Select-Object DeviceClass, DeviceName, DriverVersion | Format-Table -AutoSize -Wrap
         Write-Host (L 'Для этих устройств модуль Intel не подходит; их доступные обновления программа пока не проверяет. Никаких действий по установке не требуется. Если обновление понадобится, сначала проверьте поддержку своей модели и версии Windows у производителя компьютера.' 'The Intel module does not apply to these devices; the manager cannot check their available updates yet. No installation action is needed. If an update becomes necessary, first check support for your model and Windows version with the computer manufacturer.') -ForegroundColor Yellow
     }
-    Show-LocalCandidateChecks $devices
+    Show-LocalCandidateChecks $devices $os
     $matchedCount = @($results | Where-Object { $_.Status -eq (L 'Версия совпадает' 'Version matches') }).Count
     $newerCount = @($results | Where-Object { $_.Status -eq (L 'Доступно обновление' 'Update available') }).Count
     $manualCount = @($results | Where-Object { $_.Status -eq (L 'Требуется ручная проверка' 'Manual review needed') }).Count
