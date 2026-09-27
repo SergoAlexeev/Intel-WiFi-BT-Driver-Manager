@@ -39,6 +39,8 @@
 powershell.exe -NoProfile -ExecutionPolicy Bypass -File .\tools\Test-DriverCandidate.ps1 -InstalledReport 'C:\Drivers\installed.json' -CandidateReport 'C:\Drivers\candidate.json' -CandidateInf 'C:\Drivers\Candidate\netwtw08.inf' -HardwareId 'PCI\VEN_8086&DEV_02F0&SUBSYS_00748086\1' -Architecture amd64 -OsBuild 26200 -Language ru
 ```
 
+Добавьте `-VerifyInstalledDevice`, чтобы сравнить аппаратный ID и версию в отчёте с реально установленным устройством через Windows. Без этой проверки вывод `CANDIDATE_FOR_REVIEW` недоступен. Если версия в Windows изменилась со времени создания отчёта, результатом будет `REJECT`; если устройство не найдено, потребуется ручная проверка. Команда только читает сведения об устройствах и не требует прав администратора.
+
 Для ZIP добавьте `-PackageFile`, хеш из доверенной записи (`-ExpectedSha256` или `-ExpectedSha512`), `-ArchiveEntry` и, при наличии SDK, `-SignToolPath`. Кандидатный JSON должен ссылаться на тот же локальный INF, который передан через `-CandidateInf`. Вывод `REJECT` означает конкретное несоответствие; `NO_NEWER_VERSION` — версия не новее; `MANUAL_REVIEW` — сведений недостаточно. Даже `CANDIDATE_FOR_REVIEW` означает лишь завершение локальных предварительных проверок и не разрешает установку. Полная комплектность пакета, актуальность онлайн-источника, ранжирование Windows и ограничения производителя пока не проверяются. Инструмент ничего не скачивает и не устанавливает.
 
 ## Временные файлы менеджера
