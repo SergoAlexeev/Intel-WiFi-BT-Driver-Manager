@@ -56,7 +56,7 @@ $device.DeviceID = 'PCI\VEN_8086&DEV_02F0&SUBSYS_00308086\1'
 if ($snapshot.ContainsKey((Get-LocalWirelessKey $device WiFi))) { throw 'Different SUBSYS matched local catalogue' }
 $sixthDevice = [pscustomobject]@{ DeviceClass = 'DISPLAY'; DeviceID = 'PCI\VEN_8086&DEV_191B&SUBSYS_00000000\1'; DeviceName = 'Intel(R) HD Graphics 530' }
 $sixthCpu = [pscustomobject]@{ Name = 'Intel(R) Core(TM) i7-6700HQ CPU @ 2.60GHz' }
-$sixthOs = [pscustomobject]@{ Caption = 'Windows 11 Home'; OSArchitecture = '64-bit' }
+$sixthOs = [pscustomobject]@{ Caption = 'Windows 11 Home'; OSArchitecture = '64-bit'; Version = '10.0.26200' }
 if (-not (Test-Graphics6thGenReference $sixthCpu $sixthDevice $sixthOs)) { throw '6th Gen graphics read-only identification failed' }
 $sixthDevice.DeviceID = 'PCI\VEN_10DE&DEV_191B\1'
 if (Test-Graphics6thGenReference $sixthCpu $sixthDevice $sixthOs) { throw 'Non-Intel display was identified' }
@@ -143,13 +143,13 @@ AX201=Install,PCI\VEN_8086&DEV_02F0&SUBSYS_00748086
     }
     @{ entries = @($testEntry) } | ConvertTo-Json -Depth 5 | Set-Content -LiteralPath $script:CandidateManifest -Encoding UTF8
     $intelDevices = @(Get-CimInstance Win32_PnPSignedDriver | Where-Object { $_.DeviceID -eq $id })
-    $candidateOutput = Show-LocalCandidateChecks $intelDevices 6>&1 | Out-String
-    if ($candidateOutput -notmatch 'MANUAL_REVIEW' -or $candidateOutput -notmatch 'Installed device') {
+    $candidateOutput = Show-LocalCandidateChecks $intelDevices $sixthOs 6>&1 | Out-String
+    if ($candidateOutput -notmatch 'MANUAL_REVIEW' -or $candidateOutput -notmatch 'Installed device' -or $candidateOutput -notmatch 'Target: architecture amd64; Windows build 26200') {
         throw "Real detected device was not linked to candidate checks: $candidateOutput"
     }
     $testEntry.deviceId = 'PCI\VEN_8086&DEV_02F0&SUBSYS_00000000\1'
     @{ entries = @($testEntry) } | ConvertTo-Json -Depth 5 | Set-Content -LiteralPath $script:CandidateManifest -Encoding UTF8
-    $unmatched = Show-LocalCandidateChecks $intelDevices 3>&1 6>&1 | Out-String
+    $unmatched = Show-LocalCandidateChecks $intelDevices $sixthOs 3>&1 6>&1 | Out-String
     if ($unmatched -notmatch 'skipped') { throw 'Unmatched device was not skipped.' }
 } finally {
     Remove-Item -LiteralPath $candidateRoot -Recurse -Force -ErrorAction SilentlyContinue
