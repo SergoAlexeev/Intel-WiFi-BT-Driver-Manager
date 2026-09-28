@@ -44,22 +44,8 @@ function Read-ManagerChoice {
     Write-Host $(if ($Language -eq 'ru') { '(по умолчанию)' } else { '(default)' }) -ForegroundColor Gray
     while ($true) {
         $answer = Read-Host $(if ($Language -eq 'ru') { 'Введите 1 или 2 (Y/N)' } else { 'Enter 1 or 2 (Y/N)' })
-        if ($answer -match '^(1|[Yy])
-        if ([string]::IsNullOrWhiteSpace($answer) -or $answer -match '^(2|[Nn])
-        Write-ManagerStatus -Code Review -Language $Language -Message $(if ($Language -eq 'ru') { 'Введите 1 или 2.' } else { 'Enter 1 or 2.' })
-    }
-}
-) { return $true }
-        if ([string]::IsNullOrWhiteSpace($answer) -or $answer -eq '2') { return $false }
-        Write-ManagerStatus -Code Review -Language $Language -Message $(if ($Language -eq 'ru') { 'Введите 1 или 2.' } else { 'Enter 1 or 2.' })
-    }
-}
-) { return $false }
-        Write-ManagerStatus -Code Review -Language $Language -Message $(if ($Language -eq 'ru') { 'Введите 1 или 2.' } else { 'Enter 1 or 2.' })
-    }
-}
-) { return $true }
-        if ([string]::IsNullOrWhiteSpace($answer) -or $answer -eq '2') { return $false }
+        if ($answer -match '^(1|[Yy])$') { return $true }
+        if ([string]::IsNullOrWhiteSpace($answer) -or $answer -match '^(2|[Nn])$') { return $false }
         Write-ManagerStatus -Code Review -Language $Language -Message $(if ($Language -eq 'ru') { 'Введите 1 или 2.' } else { 'Enter 1 or 2.' })
     }
 }
