@@ -331,7 +331,7 @@ function Show-LocalCandidateChecks($DetectedDevices, $TargetOs) {
     if (-not (Test-Path -LiteralPath $checker -PathType Leaf)) {
         throw (L 'Модуль проверки пакета не найден рядом с менеджером в папке tools.' 'Package check module is missing from the tools folder next to the manager.')
     }
-    Write-Host (L "Локальные кандидаты из $manifestPath: проверка точных ID обнаруженных устройств Intel." "Local candidates in ${manifestPath}: exact Intel device IDs only.") -ForegroundColor Cyan
+    Write-Host (L "Локальные кандидаты из ${manifestPath}: проверка точных ID обнаруженных устройств Intel." "Local candidates in ${manifestPath}: exact Intel device IDs only.") -ForegroundColor Cyan
     $seen = @{}
     foreach ($entry in @($manifest.entries)) {
         $deviceId = [string]$entry.deviceId
