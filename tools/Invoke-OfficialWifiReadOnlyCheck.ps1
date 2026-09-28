@@ -34,7 +34,7 @@ $work = Join-Path $workBase ([guid]::NewGuid().ToString('N'))
 [IO.Directory]::CreateDirectory($work) | Out-Null
 try {
     $package = Join-Path $work $data.fileName
-    Write-Host $(if ($Language -eq 'ru') { 'Загружаю ZIP Intel во временную папку; после проверки он будет удалён.' } else { 'Downloading Intel ZIP to a temporary folder; it will be deleted after the check.' })
+    Write-Host $(if ($Language -eq 'ru') { 'Загрузка ZIP Intel во временную папку; после проверки файл удаляется.' } else { 'Downloading Intel ZIP to a temporary folder; it will be deleted after the check.' })
     Invoke-WebRequest -Uri $url -OutFile $package -UseBasicParsing -TimeoutSec 120 -ErrorAction Stop
     if ((Get-FileHash -LiteralPath $package -Algorithm SHA256).Hash -ine $hash) {
         throw 'Downloaded ZIP SHA-256 differs from the value published by Intel.'
