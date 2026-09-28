@@ -210,7 +210,7 @@ function Show-IntelInventory {
     [PSCustomObject]@{
         Manufacturer = $computer.Manufacturer
         Model = $computer.Model
-        Processor = $processor.Name
+        Processor = ([string]$processor.Name).Trim()
         Windows = $os.Caption
         BIOSVersion = $bios.SMBIOSBIOSVersion
     } | Format-List
@@ -388,7 +388,7 @@ function Show-UpdateCheck {
     $os = Get-CimInstance Win32_OperatingSystem
     $computer = Get-CimInstance Win32_ComputerSystem
     Write-Host (L "Компьютер: $($computer.Manufacturer) $($computer.Model)." "Computer: $($computer.Manufacturer) $($computer.Model).")
-    Write-Host (L "Система: процессор $($processor.Name); $($os.Caption) ($($os.OSArchitecture))." "System: processor $($processor.Name); $($os.Caption) ($($os.OSArchitecture)).")
+    Write-Host (L "Система: процессор $(([string]$processor.Name).Trim()); $($os.Caption) ($($os.OSArchitecture))." "System: processor $(([string]$processor.Name).Trim()); $($os.Caption) ($($os.OSArchitecture)).")
     Write-Host (L 'Проверяю каждое устройство отдельно: установленная версия, источник сравнения, результат и следующий шаг.' 'Checking each device separately: installed version, comparison source, result and next step.')
     $allDevices = @(Get-CimInstance Win32_PnPSignedDriver)
     $devices = @($allDevices | Where-Object {
@@ -591,6 +591,10 @@ function Show-UpdateCheck {
         Write-Host (L 'Беспроводные устройства других производителей:' 'Wireless devices from other manufacturers:') -ForegroundColor Cyan
         $otherWireless | Select-Object DeviceClass, DeviceName, DriverVersion | Format-Table -AutoSize -Wrap
         Write-Host (L 'Для этих устройств модуль Intel не подходит; их доступные обновления программа пока не проверяет. Никаких действий по установке не требуется. Если обновление понадобится, сначала проверьте поддержку своей модели и версии Windows у производителя компьютера.' 'The Intel module does not apply to these devices; the manager cannot check their available updates yet. No installation action is needed. If an update becomes necessary, first check support for your model and Windows version with the computer manufacturer.') -ForegroundColor Yellow
+    }
+    if (@($results).Count -eq 0) {
+        Write-Host (L 'Итог: подходящих устройств Intel нет; сравнение версий и поиск кандидатов не выполнялись.' 'Summary: no supported Intel devices found; no version comparison or candidate search was performed.') -ForegroundColor Cyan
+        return
     }
     Show-LocalCandidateChecks $devices $os
     $matchedCount = @($results | Where-Object { $_.Status -eq (L 'Версия совпадает' 'Version matches') }).Count
