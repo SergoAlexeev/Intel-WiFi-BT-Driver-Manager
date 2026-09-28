@@ -17,15 +17,15 @@ function Write-ManagerStage {
 
 function Write-ManagerStatus {
     param(
-        [Parameter(Mandatory)][ValidateSet('Pass', 'Review', 'Reject', 'Skip')][string]$Code,
+        [Parameter(Mandatory)][ValidateSet('Pass', 'Advisory', 'Review', 'Reject', 'Skip')][string]$Code,
         [Parameter(Mandatory)][ValidateNotNullOrEmpty()][string]$Message,
         [ValidateSet('ru', 'en')][string]$Language = 'ru'
     )
     $labels = @{
-        ru = @{ Pass='ПРОЙДЕНО'; Review='НУЖНА ПРОВЕРКА'; Reject='ОТКЛОНЕНО'; Skip='ПРОПУЩЕНО' }
-        en = @{ Pass='PASS'; Review='REVIEW'; Reject='REJECTED'; Skip='SKIPPED' }
+        ru = @{ Pass='ПРОЙДЕНО'; Advisory='СПРАВОЧНО'; Review='НУЖНА ПРОВЕРКА'; Reject='ОТКЛОНЕНО'; Skip='ПРОПУЩЕНО' }
+        en = @{ Pass='PASS'; Advisory='ADVISORY'; Review='REVIEW'; Reject='REJECTED'; Skip='SKIPPED' }
     }
-    $colors = @{ Pass='Green'; Review='Yellow'; Reject='Red'; Skip='Gray' }
+    $colors = @{ Pass='Green'; Advisory='Gray'; Review='Yellow'; Reject='Red'; Skip='Gray' }
     Write-Host "[$($labels[$Language][$Code])] " -ForegroundColor $colors[$Code] -NoNewline
     Write-Host $Message
 }
