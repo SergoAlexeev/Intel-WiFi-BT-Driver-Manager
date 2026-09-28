@@ -546,13 +546,30 @@ function Show-UpdateCheck {
         Write-ManagerStage -Number 2 -Total 2 -Title (L 'Результаты по устройствам' 'Results by device') -Language $script:uiLanguage
     }
     if (@($results).Count -eq 0) { Write-Host (L 'Устройства Intel Wi-Fi, Bluetooth или Graphics не обнаружены.' 'No Intel Wi-Fi, Bluetooth or Graphics devices found.') }
-    else { $results | Format-Table Type, Device, Installed, Available, Status -AutoSize -Wrap }
+    else {
+        $width = 120
+        try { $width = $Host.UI.RawUI.WindowSize.Width } catch { }
+        if ($width -lt 95) {
+            foreach ($result in $results) {
+                Write-Host ''
+                Write-Host "$($result.Type): $($result.Device)" -ForegroundColor Cyan
+                Write-Host (L "Установлено: $($result.Installed); в источнике: $($result.Available)." "Installed: $($result.Installed); source version: $($result.Available).")
+                Write-Host (L "Результат: $($result.Status)" "Result: $($result.Status)")
+            }
+        } elseif ($script:uiLanguage -eq 'ru') {
+            $results | Format-Table @{Label='Тип';Expression={$_.Type}}, @{Label='Устройство';Expression={$_.Device}}, @{Label='Установлено';Expression={$_.Installed}}, @{Label='В источнике';Expression={$_.Available}}, @{Label='Результат';Expression={$_.Status}} -AutoSize -Wrap
+        } else {
+            $results | Format-Table Type, Device, Installed, Available, Status -AutoSize -Wrap
+        }
+    }
     foreach ($result in $results) {
         if (Get-Command Write-ManagerStatus -ErrorAction SilentlyContinue) {
-            $uiCode = if ($result.Status -eq (L 'Версия совпадает' 'Version matches')) { 'Pass' }
+            $uiCode = if ($result.Status -eq (L 'Версия совпадает' 'Version matches') -and $cabAssessment -and $result.Type -eq 'Bluetooth' -and $result.Source -like 'download.windowsupdate.com*') { 'Pass' }
+                elseif ($result.Status -eq (L 'Версия совпадает' 'Version matches')) { 'Review' }
                 elseif ($result.Status -in @((L 'Доступно обновление' 'Update available'), (L 'Требуется ручная проверка' 'Manual review needed'))) { 'Review' }
                 else { 'Skip' }
-            Write-ManagerStatus -Code $uiCode -Message "$($result.Device): $($result.Status)" -Language $script:uiLanguage
+            $statusText = if ($uiCode -eq 'Review' -and $result.Status -eq (L 'Версия совпадает' 'Version matches')) { L 'Версия совпала со справочным источником; наличие новых выпусков не проверено.' 'Version matches an advisory source; newer releases were not checked.' } else { $result.Status }
+            Write-ManagerStatus -Code $uiCode -Message "$($result.Device): $statusText" -Language $script:uiLanguage
         }
         if ($result.Source) { Write-Host "$($result.Type): $($result.Source)" }
         if ($result.Note) { Write-Host "$($result.Device): $($result.Note)" -ForegroundColor Yellow }
