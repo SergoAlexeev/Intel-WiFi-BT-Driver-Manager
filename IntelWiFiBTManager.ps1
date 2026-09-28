@@ -579,6 +579,8 @@ function Show-UpdateCheck {
             } else {
                 Write-Host (L "Следующий шаг для $($result.Device): запустите этот файл без параметров. Базовая утилита проверит совместимость и запросит подтверждение; Wi-Fi и Bluetooth проверяются вместе." "Next for $($result.Device): run this file without parameters. The base utility checks compatibility and asks for confirmation; Wi-Fi and Bluetooth are checked together.")
             }
+        } elseif ($result.Status -eq (L 'Версия совпадает' 'Version matches')) {
+            # The status and source above contain the complete result.
         } elseif ($result.Status -eq (L 'Установлена более новая версия' 'Newer version installed')) {
             Write-Host (L "$($result.Device): установленная версия новее значения источника; откат не требуется." "$($result.Device): installed version exceeds the source value; no downgrade is needed.")
         } else {
