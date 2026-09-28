@@ -20,6 +20,7 @@ function Say([string]$Ru, [string]$En) {
     if ($Language -eq 'ru') { Write-Host $Ru } else { Write-Host $En }
 }
 $root = Split-Path $PSScriptRoot -Parent
+. (Join-Path $PSScriptRoot 'ConsoleUi.ps1')
 $meta = Get-Content -LiteralPath (Join-Path $root 'data\microsoft-bluetooth-24.80.0.2-pid0026.json') -Raw | ConvertFrom-Json
 $pin = 'BE7997BF8526144830B9C17D89FFCB5951DB78847D37FD63BA167F104040AEBF'
 $url = 'http://download.windowsupdate.com/d/msdownload/update/driver/drvs/2026/09/a8be4af6-6f95-46a1-aaa7-41e7e4df0671_74dfa0104d18a5f1252caca5312155b8043bde4a.cab'
@@ -35,17 +36,13 @@ $work = Join-Path $workBase ([guid]::NewGuid().ToString('N'))
 try {
     $cabPath = $PackageFile
     if (-not $cabPath) {
-        $question = if ($Language -eq 'ru') {
-            'Скачать около 2,5 МБ CAB с download.windowsupdate.com для проверки без установки? (Y/N)'
-        } else {
-            'Download about 2.5 MB CAB from download.windowsupdate.com for a read-only check? (Y/N)'
-        }
-        if ((Read-Host $question) -notmatch '^[Yy]$') {
+        $approved = Read-ManagerChoice -Title $(if ($Language -eq 'ru') { 'Проверка Bluetooth CAB: около 2,5 МБ с download.windowsupdate.com. Драйвер не устанавливается.' } else { 'Bluetooth CAB check: about 2.5 MB from download.windowsupdate.com. No driver is installed.' }) -Accept $(if ($Language -eq 'ru') { 'Скачать и проверить CAB' } else { 'Download and check CAB' }) -Decline $(if ($Language -eq 'ru') { 'Пропустить загрузку' } else { 'Skip download' }) -Language $Language
+        if (-not $approved) {
             Say 'Загрузка отменена.' 'Download cancelled.'
             return
         }
         $cabPath = Join-Path $work 'candidate.cab'
-        Say 'Скачиваю CAB Microsoft по HTTP. До чтения INF обязательно сверю SHA-256; файл не будет установлен.' 'Downloading Microsoft-hosted CAB via HTTP. SHA-256 is checked before reading INF; no installation.'
+        Say 'Загрузка CAB Microsoft по HTTP. Перед чтением INF проверяется SHA-256; установка не выполняется.' 'Downloading Microsoft-hosted CAB via HTTP. SHA-256 is checked before reading INF; no installation.'
         Invoke-WebRequest -Uri $url -OutFile $cabPath -UseBasicParsing -TimeoutSec 120 -ErrorAction Stop
     }
     Say 'Этап 1/3. Проверяю хеш CAB.' 'Step 1/3. Checking CAB SHA-256.'
