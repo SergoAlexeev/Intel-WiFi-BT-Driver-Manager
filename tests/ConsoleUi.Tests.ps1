@@ -7,12 +7,13 @@ function Write-Host {
 }
 Write-ManagerStage -Number 2 -Total 4 -Title 'Проверка файла' -Detail 'Без установки.' -Language ru
 Write-ManagerStatus -Code Pass -Message 'Хеш совпал.' -Language ru
+Write-ManagerStatus -Code Advisory -Message 'Справочное совпадение.' -Language ru
 Write-ManagerStatus -Code Review -Message 'Нужен SignTool.' -Language ru
 Write-ManagerStatus -Code Reject -Message 'Хеш неверен.' -Language ru
 Write-ManagerStatus -Code Skip -Message 'Загрузка отклонена.' -Language ru
 Write-ManagerStatus -Code Pass -Message 'Hash matches.' -Language en
 $joined = ($script:lines | ForEach-Object Text) -join ' '
-foreach ($value in @('Этап 2/4', '[ПРОЙДЕНО]', '[НУЖНА ПРОВЕРКА]', '[ОТКЛОНЕНО]', '[ПРОПУЩЕНО]', '[PASS]')) {
+foreach ($value in @('Этап 2/4', '[ПРОЙДЕНО]', '[СПРАВОЧНО]', '[НУЖНА ПРОВЕРКА]', '[ОТКЛОНЕНО]', '[ПРОПУЩЕНО]', '[PASS]')) {
     if (-not $joined.Contains($value)) { throw "Missing readable status: $value" }
 }
 $script:answers = @('', 'other', '1')
