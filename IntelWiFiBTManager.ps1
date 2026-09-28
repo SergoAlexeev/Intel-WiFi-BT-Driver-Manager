@@ -171,7 +171,7 @@ function Invoke-GraphicsRestartPrompt {
         Write-Host (L 'Перезагрузка отложена. Вы сможете перезагрузить компьютер позже вручную.' 'Restart postponed. You can restart the computer manually later.')
         return $false
     }
-    Write-Host (L 'Перезагрузка подтверждена. Закрываю журнал и передаю команду Windows.' 'Restart confirmed. Closing the log and asking Windows to restart.')
+    Write-Host (L 'Перезагрузка подтверждена. Журнал закрывается; команда перезагрузки передаётся Windows.' 'Restart confirmed. The log is closing and Windows will receive the restart request.')
     Clear-ManagerWorkDirectory
     Close-ManagerLog
     Restart-Computer -ErrorAction Stop
@@ -331,7 +331,7 @@ function Show-LocalCandidateChecks($DetectedDevices, $TargetOs) {
     if (-not (Test-Path -LiteralPath $checker -PathType Leaf)) {
         throw (L 'Модуль проверки пакета не найден рядом с менеджером в папке tools.' 'Package check module is missing from the tools folder next to the manager.')
     }
-    Write-Host (L "Локальные кандидаты из $manifestPath : сверяю только точные ID обнаруженных устройств Intel." "Local candidates in $manifestPath : checking exact IDs of detected Intel devices only.") -ForegroundColor Cyan
+    Write-Host (L "Локальные кандидаты из $manifestPath: проверка точных ID обнаруженных устройств Intel." "Local candidates in ${manifestPath}: exact Intel device IDs only.") -ForegroundColor Cyan
     $seen = @{}
     foreach ($entry in @($manifest.entries)) {
         $deviceId = [string]$entry.deviceId
@@ -377,19 +377,19 @@ function Show-LocalCandidateChecks($DetectedDevices, $TargetOs) {
 
 function Show-UpdateCheck {
     if (Get-Command Write-ManagerStage -ErrorAction SilentlyContinue) {
-        Write-ManagerStage -Number 1 -Total 2 -Title (L 'Обнаружение устройств и источников' 'Devices and sources') -Detail (L 'Проверяю версии; установка отключена.' 'Checking versions; installation is disabled.') -Language $script:uiLanguage
+        Write-ManagerStage -Number 1 -Total 2 -Title (L 'Обнаружение устройств и источников' 'Devices and sources') -Detail (L 'Проверка версий. Установка отключена.' 'Version check. Installation is disabled.') -Language $script:uiLanguage
     }
     if ($VerifyBluetoothCab) {
         Write-Host (L 'Проверка обновлений: дополнительный CAB загружается только после согласия и удаляется после проверки. Установки драйвера нет.' 'Update check: an additional CAB is downloaded only with consent and removed afterward. No driver is installed.') -ForegroundColor Cyan
     } else {
-    Write-Host (L 'Проверка обновлений: читаю версии и доступные сведения о кандидатах. Менеджер на этом этапе не скачивает и не устанавливает драйверы.' 'Update check: reading versions and available candidate details. The manager does not download or install drivers at this stage.') -ForegroundColor Cyan
+    Write-Host (L 'Проверка обновлений: анализ установленных версий и доступных сведений о кандидатах. Загрузка и установка драйверов на этом этапе не выполняются.' 'Update check: analysis of installed versions and available candidate details. No drivers are downloaded or installed at this stage.') -ForegroundColor Cyan
     }
     $processor = Get-CimInstance Win32_Processor | Select-Object -First 1
     $os = Get-CimInstance Win32_OperatingSystem
     $computer = Get-CimInstance Win32_ComputerSystem
     Write-Host (L "Компьютер: $($computer.Manufacturer) $($computer.Model)." "Computer: $($computer.Manufacturer) $($computer.Model).")
     Write-Host (L "Система: процессор $(([string]$processor.Name).Trim()); $($os.Caption) ($($os.OSArchitecture))." "System: processor $(([string]$processor.Name).Trim()); $($os.Caption) ($($os.OSArchitecture)).")
-    Write-Host (L 'Проверяю каждое устройство отдельно: установленная версия, источник сравнения, результат и следующий шаг.' 'Checking each device separately: installed version, comparison source, result and next step.')
+    Write-Host (L 'Для каждого устройства: установленная версия, источник сравнения, результат и следующий шаг.' 'For each device: installed version, comparison source, result, and next step.')
     $allDevices = @(Get-CimInstance Win32_PnPSignedDriver)
     $devices = @($allDevices | Where-Object {
         ($_.DeviceClass -in @('NET', 'Bluetooth', 'DISPLAY')) -and
@@ -612,7 +612,7 @@ function Show-UpdateCheck {
 
 function Update-IntelGraphics {
     if ($Silent) { throw (L 'Режим графики требует интерактивного подтверждения; не используйте -Silent.' 'Graphics updates require interactive confirmation; do not use -Silent.') }
-    Write-Host (L 'Этап 1/5. Проверяю процессор, Windows и графическое устройство Intel.' 'Step 1/5. Checking the processor, Windows, and Intel graphics device.') -ForegroundColor Cyan
+    Write-Host (L 'Этап 1/5. Проверка процессора, Windows и графического устройства Intel.' 'Step 1/5. Processor, Windows, and Intel graphics check.') -ForegroundColor Cyan
     $processor = Get-CimInstance Win32_Processor | Select-Object -First 1
     $os = Get-CimInstance Win32_OperatingSystem
     $graphicsDevices = @(Get-CimInstance Win32_PnPSignedDriver | Where-Object {
@@ -642,7 +642,7 @@ function Update-IntelGraphics {
         if ([string]::IsNullOrWhiteSpace($localData)) { throw (L 'Не удалось определить локальную папку данных пользователя.' 'Cannot locate the local application data folder.') }
         $graphicsCache = New-ManagerWorkDirectory
         $installerPath = [IO.Path]::Combine($graphicsCache, 'gfx_win_101.2145.exe')
-        Write-Host (L "Проверяю, есть ли ранее загруженный пакет: $installerPath" "Checking for a previously downloaded package: $installerPath")
+        Write-Host (L "Проверка ранее загруженного пакета: $installerPath" "Previously downloaded package check: $installerPath")
         if (-not [IO.File]::Exists($installerPath) -or
             (Get-FileHash -LiteralPath $installerPath -Algorithm SHA512).Hash -ne $graphicsSha512) {
             if ((Read-Host (L "Скачать Intel Graphics $graphicsVersion с downloadmirror.intel.com (около 278 МБ) во временную папку этого запуска? (Y/N)" "Download Intel Graphics $graphicsVersion from downloadmirror.intel.com (about 278 MB) into this run's temporary folder? (Y/N)")) -notmatch '^[Yy]$') {
@@ -652,7 +652,7 @@ function Update-IntelGraphics {
             [IO.Directory]::CreateDirectory($graphicsCache) | Out-Null
             $staging = [IO.Path]::Combine($graphicsCache, [guid]::NewGuid().ToString('N') + '.exe')
             try {
-                Write-Host (L "Загружаю файл с официального адреса $graphicsUri" "Downloading from the official URL $graphicsUri")
+                Write-Host (L "Загрузка файла с официального адреса: $graphicsUri" "Downloading from the official URL: $graphicsUri")
                 Invoke-WebRequest -Uri $graphicsUri -OutFile $staging -UseBasicParsing -ErrorAction Stop
                 if ((Get-FileHash -LiteralPath $staging -Algorithm SHA512).Hash -ne $graphicsSha512) {
                     throw (L 'Контрольная сумма загрузки не совпадает с опубликованной Intel.' 'The download SHA-512 does not match the value published by Intel.')
@@ -684,9 +684,9 @@ function Update-IntelGraphics {
         Write-Host (L 'Установка отменена. Драйвер не изменён.' 'Installation declined. The driver was not changed.')
         return
     }
-    Write-Host (L 'Запускаю интерактивный установщик Intel и ожидаю его завершения.' 'Launching Intel interactive setup and waiting for it to finish.')
+    Write-Host (L 'Запуск установщика Intel. После его закрытия проверка продолжится.' 'Intel installer is starting. The check will continue after it closes.')
     $process = Start-Process -FilePath $installer.FullName -Wait -PassThru
-    Write-Host (L "Этап 4/5. Установщик закрыт, код: $($process.ExitCode). Повторно читаю версию драйвера из Windows." "Step 4/5. Installer closed with exit code $($process.ExitCode). Checking the driver version in Windows again.")
+    Write-Host (L "Этап 4/5. Установщик закрыт, код: $($process.ExitCode). Повторная проверка версии драйвера в Windows." "Step 4/5. Installer closed with exit code $($process.ExitCode). Driver version is being checked in Windows again.")
     $after = Get-CimInstance Win32_PnPSignedDriver | Where-Object { $_.DeviceID -eq $graphicsDevice.DeviceID } | Select-Object -First 1
     $versionConfirmed = $after -and [version]$after.DriverVersion -ge $graphicsVersion
     if ($versionConfirmed) {
@@ -730,7 +730,7 @@ try {
         if ($GraphicsInstallerPath) { $elevatedArguments += @('-GraphicsInstallerPath', ('"' + $GraphicsInstallerPath + '"')) }
         $elevatedArguments += @('-Language', $script:uiLanguage)
         $elevatedArguments += @('-LogPath', ('"' + $LogPath + '"'))
-        Write-Host (L 'Запрашиваю права администратора; журнал продолжится в повышенном процессе.' 'Requesting administrator rights; the elevated process will continue the log.')
+        Write-Host (L 'Запрос прав администратора. Запись журнала продолжится в процессе с повышенными правами.' 'Administrator rights requested. The elevated process will continue the log.')
         Close-ManagerLog
         try {
             $process = Start-Process -FilePath 'powershell.exe' -Verb RunAs -Wait -PassThru -ArgumentList $elevatedArguments
@@ -776,7 +776,7 @@ try {
     }
 
     # Find-Script проверяет метаданные записи PSGallery; это не криптографическая подпись.
-    Write-Host (L 'Этап 2/4. Проверяю версию, автора и страницу проекта базовой утилиты в PSGallery.' 'Step 2/4. Checking the base tool version, author, and project URL in PSGallery.')
+    Write-Host (L 'Этап 2/4. Проверка версии, автора и страницы проекта базовой утилиты в PSGallery.' 'Step 2/4. Base tool version, author, and project URL check in PSGallery.')
     $available = Find-Script -Name $updaterName -Repository PSGallery
     Test-PackageIdentity $available
     Write-Host (L "Подтверждён пакет $($available.Name) версии $($available.Version), автор $($available.Author)." "Package verified: $($available.Name), version $($available.Version), author $($available.Author).")
@@ -810,7 +810,7 @@ try {
         $staging = [IO.Path]::Combine($cachePath, [guid]::NewGuid().ToString('N'))
         [IO.Directory]::CreateDirectory($staging) | Out-Null
         try {
-            Write-Host (L "Загружаю базовую утилиту $($available.Version) во временную папку." "Downloading base tool $($available.Version) into the temporary folder.")
+            Write-Host (L "Загрузка базовой утилиты $($available.Version) во временную папку." "Base tool $($available.Version) is being downloaded to the temporary folder.")
             # Save-Script не использует записи об установленных скриптах.
             Save-Script -Name $updaterName -Repository PSGallery -RequiredVersion $available.Version -Path $staging -Force -ErrorAction Stop
             $downloadedPath = [IO.Path]::Combine($staging, "$updaterName.ps1")
@@ -834,9 +834,9 @@ try {
         }
     }
     if ($Silent) {
-        Write-Host (L 'Этап 4/4. Запускаю базовую утилиту в автоматическом режиме -auto. Её экраны и сообщения остаются английскими.' 'Step 4/4. Starting the base tool in automatic -auto mode. Its own screens and messages remain in English.') -ForegroundColor Cyan
+        Write-Host (L 'Этап 4/4. Запуск базовой утилиты в режиме -auto. Её экраны и сообщения отображаются на английском.' 'Step 4/4. Base tool starts in automatic -auto mode. Its screens and messages are in English.') -ForegroundColor Cyan
     } else {
-        Write-Host (L 'Этап 4/4. Запускаю базовую утилиту. Она откроет свои экраны на английском и запросит согласие перед установкой.' 'Step 4/4. Starting the base tool. Its own screens are in English and it will request confirmation before installing.') -ForegroundColor Cyan
+        Write-Host (L 'Этап 4/4. Запуск базовой утилиты. Её экраны отображаются на английском; перед установкой она запросит согласие.' 'Step 4/4. Base tool starts. Its screens are in English; it will ask for confirmation before installation.') -ForegroundColor Cyan
         Write-Host (L 'Если все драйверы актуальны, вопрос «force reinstall ... (Y/N)» означает принудительную переустановку: N — оставить драйверы без изменений.' 'If all drivers are current, the base tool may ask “force reinstall ... (Y/N)”: N keeps the installed drivers unchanged.')
     }
     # Ее интерактивный режим показывает версии и запрашивает согласие; -auto устанавливает без вопросов.
