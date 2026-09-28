@@ -33,7 +33,7 @@ $work = Join-Path $workBase ([guid]::NewGuid().ToString('N'))
 [IO.Directory]::CreateDirectory($work) | Out-Null
 try {
     $package = Join-Path $work $data.fileName
-    Write-Host $(if ($Language -eq 'ru') { 'Скачиваю EXE во временную папку. Файл не будет запущен и после проверки удалится.' } else { 'Downloading the EXE to a temporary folder. It will not be launched and will be deleted after the check.' })
+    Write-Host $(if ($Language -eq 'ru') { 'Загрузка EXE во временную папку. Установщик не запускается и после проверки удаляется.' } else { 'Downloading the EXE to a temporary folder. It will not be launched and will be deleted after the check.' })
     Invoke-WebRequest -Uri $url -OutFile $package -UseBasicParsing -TimeoutSec 180 -ErrorAction Stop
     if ((Get-FileHash -LiteralPath $package -Algorithm SHA256).Hash -ine $hash) {
         throw 'Downloaded Intel Bluetooth EXE SHA-256 differs from the hash on Intel page.'
