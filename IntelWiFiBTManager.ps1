@@ -565,10 +565,10 @@ function Show-UpdateCheck {
     foreach ($result in $results) {
         if (Get-Command Write-ManagerStatus -ErrorAction SilentlyContinue) {
             $uiCode = if ($result.Status -eq (L 'Версия совпадает' 'Version matches') -and $cabAssessment -and $result.Type -eq 'Bluetooth' -and $result.Source -like 'download.windowsupdate.com*') { 'Pass' }
-                elseif ($result.Status -eq (L 'Версия совпадает' 'Version matches')) { 'Review' }
+                elseif ($result.Status -eq (L 'Версия совпадает' 'Version matches')) { 'Advisory' }
                 elseif ($result.Status -in @((L 'Доступно обновление' 'Update available'), (L 'Требуется ручная проверка' 'Manual review needed'))) { 'Review' }
                 else { 'Skip' }
-            $statusText = if ($uiCode -eq 'Review' -and $result.Status -eq (L 'Версия совпадает' 'Version matches')) { L 'Версия совпала со справочным источником; наличие новых выпусков не проверено.' 'Version matches an advisory source; newer releases were not checked.' } else { $result.Status }
+            $statusText = if ($uiCode -eq 'Advisory' -and $result.Status -eq (L 'Версия совпадает' 'Version matches')) { L 'Версия совпала со справочным источником; наличие новых выпусков не проверено.' 'Version matches an advisory source; newer releases were not checked.' } else { $result.Status }
             Write-ManagerStatus -Code $uiCode -Message "$($result.Device): $statusText" -Language $script:uiLanguage
         }
         if ($result.Source) { Write-Host "$($result.Type): $($result.Source)" }
