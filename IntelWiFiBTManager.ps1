@@ -483,12 +483,12 @@ function Show-UpdateCheck {
                 $sourceLabel = "$($entry.Source) ($($entry.Checked); local snapshot)"
                 if ((Get-Date).Date -le ([datetime]::ParseExact($entry.Checked, 'yyyy-MM-dd', [Globalization.CultureInfo]::InvariantCulture)).AddDays(30)) {
                     $available = $entry.Version
-                    $note = L 'Версия взята из локального проверенного снимка, а не из живого каталога Intel. Новые релизы после даты снимка здесь не обнаруживаются.' 'Version comes from a reviewed local snapshot, not a live Intel catalogue. Releases after the snapshot date cannot be detected here.'
+                    $note = L 'Источник — сохранённые данные Intel. Более новые выпуски после указанной даты здесь не проверяются.' 'Source: saved Intel data. Releases after the stated date are not checked here.'
                 } else {
                     $note = L 'Локальный снимок старше 30 дней; сравнение версий отключено до повторной проверки каталога.' 'Local snapshot is older than 30 days; version comparison is disabled until the catalogue is reviewed.'
                 }
                 if ($kind -eq 'WiFi') {
-                    $note += L ' Совпадение подтверждено по DEV и SUBSYS в экспортированном INF. Совместимость будущего пакета этим не подтверждена.' ' DEV and SUBSYS were matched in the exported INF. This does not prove compatibility of a future package.'
+                    $note += L ' ID устройства совпал с сохранённым INF; совместимость будущего пакета не подтверждена.' ' Device ID matches the saved INF; compatibility of a future package is unverified.'
                 }
             } elseif ($key -and $catalogues.ContainsKey($kind) -and $catalogues[$kind].ContainsKey($key)) {
                 $available = $catalogues[$kind][$key]
@@ -579,8 +579,6 @@ function Show-UpdateCheck {
             } else {
                 Write-Host (L "Следующий шаг для $($result.Device): запустите этот файл без параметров. Базовая утилита проверит совместимость и запросит подтверждение; Wi-Fi и Bluetooth проверяются вместе." "Next for $($result.Device): run this file without parameters. The base utility checks compatibility and asks for confirmation; Wi-Fi and Bluetooth are checked together.")
             }
-        } elseif ($result.Status -eq (L 'Версия совпадает' 'Version matches')) {
-            Write-Host (L "$($result.Device): версия совпадает с проверяемым источником; проверка более новых выпусков зависит от актуальности источника." "$($result.Device): version matches the checked source; detecting newer releases depends on the source freshness.")
         } elseif ($result.Status -eq (L 'Установлена более новая версия' 'Newer version installed')) {
             Write-Host (L "$($result.Device): установленная версия новее значения источника; откат не требуется." "$($result.Device): installed version exceeds the source value; no downgrade is needed.")
         } else {
@@ -590,7 +588,7 @@ function Show-UpdateCheck {
     if ($otherWireless.Count) {
         Write-Host (L 'Беспроводные устройства других производителей:' 'Wireless devices from other manufacturers:') -ForegroundColor Cyan
         $otherWireless | Select-Object DeviceClass, DeviceName, DriverVersion | Format-Table -AutoSize -Wrap
-        Write-Host (L 'Для этих устройств модуль Intel не подходит; их доступные обновления программа пока не проверяет. Никаких действий по установке не требуется. Если обновление понадобится, сначала проверьте поддержку своей модели и версии Windows у производителя компьютера.' 'The Intel module does not apply to these devices; the manager cannot check their available updates yet. No installation action is needed. If an update becomes necessary, first check support for your model and Windows version with the computer manufacturer.') -ForegroundColor Yellow
+        Write-Host (L 'Это оборудование другого производителя. Обновления для него здесь не проверяются; установка не предлагается. При необходимости используйте поддержку производителя ПК.' 'These devices are from other manufacturers. Their updates are not checked here, and no installation is offered. Consult the computer manufacturer if needed.') -ForegroundColor Yellow
     }
     if (@($results).Count -eq 0) {
         Write-Host (L 'Итог: подходящих устройств Intel нет; сравнение версий и поиск кандидатов не выполнялись.' 'Summary: no supported Intel devices found; no version comparison or candidate search was performed.') -ForegroundColor Cyan
@@ -602,11 +600,11 @@ function Show-UpdateCheck {
     $manualCount = @($results | Where-Object { $_.Status -eq (L 'Требуется ручная проверка' 'Manual review needed') }).Count
     $unknownCount = @($results | Where-Object { $_.Status -eq (L 'Не удалось определить' 'Unknown') }).Count
     Write-Host (L "Итог: совпадений с источниками — $matchedCount; кандидатов с более высокой версией — $newerCount; нужна ручная проверка — $manualCount; версия не определена — $unknownCount." "Summary: versions matching sources: $matchedCount; candidates with a higher version: $newerCount; manual review: $manualCount; version unknown: $unknownCount.") -ForegroundColor Cyan
-    Write-Host (L 'Это сравнение с доступными источниками, а не полный поиск всех новых выпусков Intel. Совпадение версий не доказывает, что обновлений больше нет.' 'This compares against available sources; it is not a complete search for all new Intel releases. Matching versions do not prove that no newer update exists.') -ForegroundColor Yellow
+    Write-Host (L 'Сравнение выполнено с доступными источниками. Новые выпуски Intel вне этих источников могут существовать.' 'This compares against available sources; it is not a complete search for all new Intel releases. Matching versions do not prove that no newer update exists.') -ForegroundColor Yellow
     if ($cabAssessment) {
         Write-Host (L 'Bluetooth PID_0026: версия сопоставлена с закреплённым CAB, проверенным в этом запуске; другие Bluetooth ID используют справочные источники. Состояние проверки связи INF/CAT показано в строке устройства. Wi-Fi использует локальный снимок или таблицу стороннего проекта. Установка Wi-Fi/Bluetooth пока зависит от базовой утилиты. Чипсет, BIOS и микрокод не проверяются.' 'Bluetooth PID_0026: version compared with the pinned CAB checked in this run; other Bluetooth IDs use advisory sources. INF/CAT membership status is shown for the device. Wi-Fi uses a local snapshot or third-party table. Wi-Fi/Bluetooth installation still depends on the base tool. Chipset, BIOS and microcode are not checked.') -ForegroundColor Yellow
     } else {
-    Write-Host (L 'Wi-Fi/Bluetooth: сначала локальный проверенный снимок; для остальных ID — таблицы стороннего проекта. Оба источника справочные: совпадение не гарантирует актуальность, совместимость или доступность пакета. Установка Wi-Fi/Bluetooth пока зависит от базовой утилиты. Чипсет, BIOS и микрокод не проверяются.' 'Wi-Fi/Bluetooth: reviewed local snapshot first; third-party tables for other IDs. Both are advisory: a match does not guarantee freshness, compatibility or availability. Wi-Fi/Bluetooth installation still depends on the base tool. Chipset, BIOS and microcode are not checked.') -ForegroundColor Yellow
+    Write-Host (L 'Wi-Fi/Bluetooth: используются сохранённые данные и справочные таблицы стороннего проекта. Актуальность и совместимость пакета не подтверждены. Установка выполняется отдельной базовой утилитой. Чипсет, BIOS и микрокод не проверяются.' 'Wi-Fi/Bluetooth: saved data and third-party reference tables are used. Package freshness and compatibility are unverified. Installation uses the separate base tool. Chipset, BIOS and microcode are not checked.') -ForegroundColor Yellow
     }
 }
 
