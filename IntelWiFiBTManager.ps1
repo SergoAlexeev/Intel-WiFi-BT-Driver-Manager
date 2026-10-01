@@ -92,6 +92,24 @@ $script:managerRoot = $PSScriptRoot
 $uiModule = Join-Path $PSScriptRoot 'tools\ConsoleUi.ps1'
 if (Test-Path -LiteralPath $uiModule -PathType Leaf) { . $uiModule }
 
+function Confirm-ManagerAction {
+    param([string]$Title, [string]$Accept, [string]$Decline)
+    if (Get-Command Read-ManagerChoice -ErrorAction SilentlyContinue) {
+        return (Read-ManagerChoice -Title $Title -Accept $Accept -Decline $Decline -Language $script:uiLanguage)
+    }
+    # A downloaded standalone manager retains the same safe choices.
+    Write-Host ''
+    Write-Host $Title -ForegroundColor Cyan
+    Write-Host "[1] $Accept"
+    Write-Host ("[2] $Decline " + (L '(по умолчанию)' '(default)'))
+    while ($true) {
+        $answer = Read-Host (L 'Введите 1 или 2 (Y/N)' 'Enter 1 or 2 (Y/N)')
+        if ($answer -match '^(1|[Yy])$') { return $true }
+        if ([string]::IsNullOrWhiteSpace($answer) -or $answer -match '^(2|[Nn])$') { return $false }
+        Write-Host (L 'Некорректный ответ. Введите 1 или 2 (Y/N).' 'Invalid answer. Enter 1 or 2 (Y/N).') -ForegroundColor Yellow
+    }
+}
+
 function New-ManagerWorkDirectory([string]$LocalDataBase) {
     if ($script:workDirectory) { return $script:workDirectory }
     if (-not $LocalDataBase) { $LocalDataBase = [Environment]::GetFolderPath('LocalApplicationData') }
@@ -167,7 +185,7 @@ function Test-GraphicsRestartEligible([int]$InstallerExitCode, [bool]$VersionCon
 }
 
 function Invoke-GraphicsRestartPrompt {
-    if ((Read-Host (L 'Этап 5/5. Сохраните открытые документы. Перезагрузить компьютер сейчас? (Y/N)' 'Step 5/5. Save open work. Restart the computer now? (Y/N)')) -notmatch '^[Yy]$') {
+    if (-not (Confirm-ManagerAction -Title (L 'Этап 5/5. Перезагрузка компьютера. Сохраните открытые документы.' 'Step 5/5. Computer restart. Save open work.') -Accept (L 'Перезагрузить сейчас' 'Restart now') -Decline (L 'Отложить перезагрузку' 'Postpone restart'))) {
         Write-Host (L 'Перезагрузка отложена. Вы сможете перезагрузить компьютер позже вручную.' 'Restart postponed. You can restart the computer manually later.')
         return $false
     }
@@ -645,7 +663,7 @@ function Update-IntelGraphics {
         Write-Host (L "Проверка ранее загруженного пакета: $installerPath" "Previously downloaded package check: $installerPath")
         if (-not [IO.File]::Exists($installerPath) -or
             (Get-FileHash -LiteralPath $installerPath -Algorithm SHA512).Hash -ne $graphicsSha512) {
-            if ((Read-Host (L "Скачать Intel Graphics $graphicsVersion с downloadmirror.intel.com (около 278 МБ) во временную папку этого запуска? (Y/N)" "Download Intel Graphics $graphicsVersion from downloadmirror.intel.com (about 278 MB) into this run's temporary folder? (Y/N)")) -notmatch '^[Yy]$') {
+            if (-not (Confirm-ManagerAction -Title (L "Загрузка Intel Graphics $graphicsVersion: около 278 МБ с downloadmirror.intel.com во временную папку." "Intel Graphics $graphicsVersion download: about 278 MB from downloadmirror.intel.com to a temporary folder.") -Accept (L 'Скачать пакет' 'Download package') -Decline (L 'Отменить загрузку' 'Cancel download'))) {
                 Write-Host (L 'Загрузка отменена. Изменений нет.' 'Download declined. Nothing was changed.')
                 return
             }
@@ -680,7 +698,7 @@ function Update-IntelGraphics {
         throw (L 'Установщик не имеет действительной подписи Intel Corporation.' 'The installer does not have a valid Intel Corporation signature.')
     }
     Write-Host (L "Этап 3/5. SHA-512 и подпись Intel подтверждены: $($installer.FullName)" "Step 3/5. Intel SHA-512 and signature verified: $($installer.FullName)")
-    if ((Read-Host (L "Запустить установщик Intel Graphics $graphicsVersion? Откроется отдельное окно Intel. (Y/N)" "Launch Intel Graphics $graphicsVersion setup? A separate Intel window will open. (Y/N)")) -notmatch '^[Yy]$') {
+    if (-not (Confirm-ManagerAction -Title (L "Установщик Intel Graphics $graphicsVersion откроется в отдельном окне Intel." "Intel Graphics $graphicsVersion setup will open in a separate Intel window.") -Accept (L 'Запустить установщик' 'Launch installer') -Decline (L 'Отменить запуск' 'Cancel launch'))) {
         Write-Host (L 'Установка отменена. Драйвер не изменён.' 'Installation declined. The driver was not changed.')
         return
     }
@@ -723,8 +741,7 @@ try {
     if (-not $admin) {
         if ($Silent) { Stop-Manager (L 'Для тихого режима нужны права администратора.' 'Administrator rights are required for -Silent.') }
         Write-Host (L 'Для установки нужны права администратора. После подтверждения UAC менеджер продолжит работу и запись в тот же журнал.' 'Administrator rights are needed to install drivers. After UAC confirmation, the manager will continue using the same log.')
-        $answer = Read-Host (L 'Перезапустить с правами администратора? (Y/N)' 'Restart with administrator rights? (Y/N)')
-        if ($answer -notmatch '^[Yy]$') { Stop-Manager (L 'Запуск отменён.' 'Run cancelled.') }
+        if (-not (Confirm-ManagerAction -Title (L 'Повышение прав: Windows покажет запрос UAC.' 'Administrator rights: Windows will show a UAC prompt.') -Accept (L 'Продолжить с правами администратора' 'Continue as administrator') -Decline (L 'Отменить запуск' 'Cancel run'))) { Stop-Manager (L 'Запуск отменён.' 'Run cancelled.') }
         $elevatedArguments = @('-NoProfile', '-ExecutionPolicy', 'Bypass', '-File', ('"' + $PSCommandPath + '"'))
         if ($Graphics) { $elevatedArguments += '-Graphics' }
         if ($GraphicsInstallerPath) { $elevatedArguments += @('-GraphicsInstallerPath', ('"' + $GraphicsInstallerPath + '"')) }
@@ -768,7 +785,7 @@ try {
     # На чистой Windows PowerShell 5.1 PowerShellGet может требовать поставщик NuGet.
     if (-not (Get-PackageProvider -Name NuGet -ErrorAction SilentlyContinue)) {
         Write-Host (L 'Для поиска базовой утилиты в PowerShell Gallery нужен поставщик NuGet для PowerShellGet. Он будет добавлен только для текущего пользователя; это не драйвер и не установщик Windows. Если отказаться, поиск пакета и этот режим работы завершатся.' 'PowerShellGet needs the NuGet provider to find the base utility in PowerShell Gallery. It is added for the current user only; it is not a driver or Windows installer. Declining ends package lookup and this mode.')
-        if (-not $Silent -and (Read-Host (L 'Добавить поставщик NuGet для текущего пользователя? (Y/N)' 'Add the NuGet provider for this user? (Y/N)')) -notmatch '^[Yy]$') {
+        if (-not $Silent -and -not (Confirm-ManagerAction -Title (L 'Поставщик NuGet нужен PowerShell Gallery для получения базовой утилиты. Он добавляется для текущего пользователя.' 'The NuGet provider is needed to obtain the base tool from PowerShell Gallery. It is added for the current user.') -Accept (L 'Добавить NuGet' 'Add NuGet') -Decline (L 'Отменить подготовку' 'Cancel preparation'))) {
             Stop-Manager (L 'Добавление NuGet отменено.' 'NuGet provider setup declined.')
         }
         Write-Host (L 'Этап 2/4. Добавляю поставщик NuGet для PowerShellGet.' 'Step 2/4. Adding the NuGet provider for PowerShellGet.')
@@ -803,7 +820,7 @@ try {
     Write-Host (L 'Имя автора, адрес проекта и версия сверяются с метаданными PSGallery и скачанного файла. Эти метаданные не являются цифровой подписью или независимым доказательством происхождения кода. Перед запуском будет отдельное подтверждение; автоматический режим -Silent подтверждений не запрашивает.' 'Author name, project URL and version are compared with PSGallery metadata and the downloaded file. These fields are not a digital signature or independent proof of code origin. A separate launch confirmation follows; -Silent does not prompt.')
     if ($needsDownload) {
         Write-Host (L 'Этап 3/4. Локальная копия отсутствует или отличается от версии в PSGallery.' 'Step 3/4. The cached copy is missing or differs from the PSGallery version.')
-        if (-not $Silent -and (Read-Host (L "Скачать базовую утилиту $($available.Version) во временную папку $cachePath? (Y/N)" "Download base tool $($available.Version) into temporary folder $cachePath? (Y/N)")) -notmatch '^[Yy]$') {
+        if (-not $Silent -and -not (Confirm-ManagerAction -Title (L "Загрузка базовой утилиты $($available.Version) во временную папку: $cachePath." "Base tool $($available.Version) download to temporary folder: $cachePath.") -Accept (L 'Скачать утилиту' 'Download tool') -Decline (L 'Отменить загрузку' 'Cancel download'))) {
             Stop-Manager (L 'Загрузка отменена.' 'Download declined.')
         }
         [IO.Directory]::CreateDirectory($cachePath) | Out-Null
@@ -829,7 +846,7 @@ try {
         Write-Host (L 'Этап 3/4. Локальная копия совпала по метаданным; повторная загрузка не нужна.' 'Step 3/4. The local copy matches metadata; no download is needed.')
     }
     if (-not $Silent) {
-        if ((Read-Host (L 'Запустить скрипт FirstEverTech? Его интерактивный режим отдельно спросит согласие перед установкой драйверов. (Y/N)' 'Run the FirstEverTech script? Its interactive mode asks separately before installing drivers. (Y/N)')) -notmatch '^[Yy]$') {
+        if (-not (Confirm-ManagerAction -Title (L 'Следующий шаг выполняет скрипт FirstEverTech. Перед установкой драйверов он запросит отдельное согласие.' 'The next step is handled by the FirstEverTech script. It requests separate consent before installing drivers.') -Accept (L 'Запустить скрипт' 'Run script') -Decline (L 'Отменить запуск' 'Cancel launch'))) {
             Stop-Manager (L 'Запуск базовой утилиты отменён; драйверы не изменены.' 'Base utility launch declined; drivers were not changed.')
         }
     }
