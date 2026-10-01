@@ -7,7 +7,7 @@ $parseErrors = $null
 $ast = [System.Management.Automation.Language.Parser]::ParseFile($manager, [ref]$tokens, [ref]$parseErrors)
 if ($parseErrors.Count) { throw "Manager parse error: $($parseErrors[0].Message)" }
 
-foreach ($name in @('L', 'Test-GraphicsPackageMatch', 'Test-GraphicsRestartEligible', 'Invoke-GraphicsRestartPrompt')) {
+foreach ($name in @('L', 'Confirm-ManagerAction', 'Test-GraphicsPackageMatch', 'Test-GraphicsRestartEligible', 'Invoke-GraphicsRestartPrompt')) {
     $definition = $ast.FindAll({ param($node) $node -is [System.Management.Automation.Language.FunctionDefinitionAst] -and $node.Name -eq $name }, $true)
     if ($definition.Count -ne 1) { throw "Expected one definition of $name" }
     . ([scriptblock]::Create($definition[0].Extent.Text))
