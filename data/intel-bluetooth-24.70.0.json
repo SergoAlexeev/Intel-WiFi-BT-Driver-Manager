@@ -1,0 +1,13 @@
+{
+  "schemaVersion": 1,
+  "id": "intel-bluetooth-24.70.0",
+  "deviceClass": "BLUETOOTH",
+  "packageVersion": "24.70.0",
+  "driverVersionForAx201": "24.70.0.4",
+  "fileName": "BT-24.70.0-64UWD-Win10-Win11.exe",
+  "sha256": "001DF2E294E86D051645EA1367F4A19518CA8C2A52782CDD4C1CB81C3C0F038A",
+  "sourcePage": "https://www.intel.com/content/www/us/en/download/18649/intel-wireless-bluetooth-drivers-for-windows-10-and-windows-11.html",
+  "reviewedOn": "2026-09-27",
+  "note": "Official Intel installer, read-only file audit. No EXE execution or INF extraction. Intel's download page lists AX201 and driver version 24.70.0.4.",
+  "downloadUrl": "https://downloadmirror.intel.com/927576/BT-24.70.0-64UWD-Win10-Win11.exe"
+}

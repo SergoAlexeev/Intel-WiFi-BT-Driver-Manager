@@ -1,0 +1,13 @@
+{
+  "schemaVersion": 1,
+  "id": "intel-wifi-it-24.70.0-ax201",
+  "deviceClass": "NET",
+  "deviceIdPrefix": "PCI\\VEN_8086&DEV_02F0&SUBSYS_00748086",
+  "driverVersion": "24.70.0.3",
+  "fileName": "WiFi-24.70.0-Driver64-Win10-Win11.zip",
+  "sha256": "E74843C855580659559A6D9DB55E1864121E756026F9B543FB8A792DA2EB92A9",
+  "sourcePage": "https://www.intel.com/content/www/us/en/download/18231/intel-proset-wireless-software-and-wi-fi-drivers-for-it-administrators.html",
+  "reviewedOn": "2026-09-27",
+  "note": "Read-only pilot for AX201. Intel publishes the ZIP hash; the archive must be provided locally. No installation.",
+  "downloadUrl": "https://downloadmirror.intel.com/926940/WiFi-24.70.0-Driver64-Win10-Win11.zip"
+}

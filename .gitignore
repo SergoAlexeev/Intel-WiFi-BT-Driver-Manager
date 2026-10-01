@@ -1,0 +1,13 @@
+# Local runtime/download directories, not repository source data.
+/Logs/
+/Work/
+/Tools/SignTool/
+/logs/
+/cache/
+/downloads/
+/temp/
+*.log
+*.tmp
+# Intentional test fixtures may be committed explicitly.
+!tests/fixtures/**/*.log
+!tests/fixtures/**/*.tmp
