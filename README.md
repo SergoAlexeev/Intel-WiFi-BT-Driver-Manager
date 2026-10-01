@@ -1,5 +1,9 @@
 # Intel Wi-Fi & Bluetooth Driver Manager v2.2.0 preview
 
+Эта ветка содержит **v2.2.0 preview**. Опубликованный стабильный выпуск — [v2.1.0](https://github.com/SergoAlexeev/Intel-WiFi-BT-Driver-Manager/releases/tag/v2.1.0); функции preview не следует считать частью этого релиза.
+
+Для разработки: [правила агента](AGENTS.md), [текущая архитектура](docs/ARCHITECTURE.md), [команды тестирования](docs/TESTING.md), [макет и правила интерфейса](docs/console-ui-2.2.0.md). Подробные сценарии запуска — в [DOCUMENTATION.md](DOCUMENTATION.md); план работ — в GitHub Issues.
+
 Менеджер Wi-Fi и Bluetooth Intel на PowerShell. Для установки использует [Universal Intel Wi-Fi and Bluetooth Drivers Updater](https://github.com/FirstEverTech/Universal-Intel-WiFi-BT-Updater). Требуются Windows 10/11, PowerShell 5.1+, адаптер Intel, подключение к интернету и права администратора. Установка драйверов выполняется базовой утилитой.
 
 ## Запуск
