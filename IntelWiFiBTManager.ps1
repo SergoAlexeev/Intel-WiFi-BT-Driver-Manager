@@ -663,7 +663,7 @@ function Update-IntelGraphics {
         Write-Host (L "Проверка ранее загруженного пакета: $installerPath" "Previously downloaded package check: $installerPath")
         if (-not [IO.File]::Exists($installerPath) -or
             (Get-FileHash -LiteralPath $installerPath -Algorithm SHA512).Hash -ne $graphicsSha512) {
-            if (-not (Confirm-ManagerAction -Title (L "Загрузка Intel Graphics $graphicsVersion: около 278 МБ с downloadmirror.intel.com во временную папку." "Intel Graphics $graphicsVersion download: about 278 MB from downloadmirror.intel.com to a temporary folder.") -Accept (L 'Скачать пакет' 'Download package') -Decline (L 'Отменить загрузку' 'Cancel download'))) {
+            if (-not (Confirm-ManagerAction -Title (L "Загрузка Intel Graphics ${graphicsVersion}: около 278 МБ с downloadmirror.intel.com во временную папку." "Intel Graphics $graphicsVersion download: about 278 MB from downloadmirror.intel.com to a temporary folder.") -Accept (L 'Скачать пакет' 'Download package') -Decline (L 'Отменить загрузку' 'Cancel download'))) {
                 Write-Host (L 'Загрузка отменена. Изменений нет.' 'Download declined. Nothing was changed.')
                 return
             }
